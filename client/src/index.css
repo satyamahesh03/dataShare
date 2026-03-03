@@ -2356,9 +2356,25 @@ textarea {
 }
 
 /* ============================================
-   RESPONSIVE
+   RESPONSIVE — Tablet (768px)
    ============================================ */
 @media (max-width: 768px) {
+
+  /* Header */
+  .header-inner {
+    padding: 0 16px;
+    height: 56px;
+  }
+
+  .logo-text {
+    font-size: 1.1rem;
+  }
+
+  .header-search {
+    display: none;
+  }
+
+  /* Hero */
   .hero {
     padding: 48px 20px 24px;
   }
@@ -2368,24 +2384,183 @@ textarea {
     letter-spacing: -0.5px;
   }
 
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+
+  /* Feature Cards */
   .features {
     grid-template-columns: 1fr;
     padding: 16px 20px 60px;
+    gap: 12px;
   }
 
+  .feature-card {
+    padding: 24px 20px;
+  }
+
+  /* Tool Page */
+  .tool-page {
+    padding: 16px 16px;
+  }
+
+  .tool-header {
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .publish-btn {
+    padding: 8px 20px;
+    font-size: 0.85rem;
+  }
+
+  /* Content Area */
+  .content-area {
+    min-height: 300px;
+  }
+
+  .text-editor {
+    padding: 16px;
+  }
+
+  .text-editor textarea {
+    min-height: 260px;
+    font-size: 0.95rem;
+  }
+
+  /* File Upload */
+  .file-upload-zone {
+    min-height: 280px;
+    padding: 24px 16px;
+  }
+
+  .upload-title {
+    font-size: 1.1rem;
+  }
+
+  .file-preview {
+    padding: 12px 16px;
+  }
+
+  .file-preview-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .file-preview-name {
+    font-size: 0.85rem;
+  }
+
+  .files-list-area {
+    padding: 12px 0;
+  }
+
+  /* Options Bar */
   .options-bar {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .tool-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+  .expiry-slider-group {
+    min-width: unset;
+    width: 100%;
   }
 
+  .password-input {
+    width: 100%;
+  }
+
+  /* Publish Modal */
+  .publish-modal {
+    padding: 24px 20px;
+    margin: 16px;
+    max-width: 100%;
+  }
+
+  .publish-modal-title {
+    font-size: 1.2rem;
+  }
+
+  .expiry-pills {
+    gap: 6px;
+  }
+
+  .expiry-pill {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* Published Result */
+  .published-content {
+    padding: 32px 20px;
+  }
+
+  .published-title {
+    font-size: 1.3rem;
+  }
+
+  .published-code {
+    gap: 6px;
+  }
+
+  .published-code-char {
+    width: 42px;
+    height: 52px;
+    font-size: 1.4rem;
+  }
+
+  .published-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .published-actions .publish-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .published-qr-section {
+    padding: 20px;
+  }
+
+  /* View Share Page */
+  .view-page {
+    padding: 20px 16px;
+  }
+
+  .view-card {
+    border-radius: var(--radius-md);
+  }
+
+  .view-card-header {
+    padding: 20px 16px;
+  }
+
+  .view-card-body {
+    padding: 16px;
+  }
+
+  .view-card-meta {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .view-file-item {
+    padding: 12px;
+  }
+
+  .download-btn {
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    width: 100%;
+  }
+
+  /* Search Modal */
   .search-modal {
     padding: 28px 20px;
+    margin: 16px;
   }
 
   .search-code-box {
@@ -2394,16 +2569,250 @@ textarea {
     font-size: 1.2rem;
   }
 
+  /* Search Page */
+  .search-card {
+    padding: 40px 20px;
+  }
+
+  .search-input-wrapper {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .search-go-btn {
+    width: 100%;
+  }
+
+  /* Published Posts */
+  .posts-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .post-card {
+    padding: 16px;
+  }
+
+  .posts-empty {
+    padding: 48px 20px;
+  }
+
+  /* Password Gate */
+  .password-gate {
+    padding: 32px 16px;
+    margin: 40px auto;
+  }
+
+  .password-gate-form {
+    flex-direction: column;
+  }
+
+  .password-gate-form input {
+    width: 100%;
+  }
+
+  .password-gate-form button {
+    width: 100%;
+  }
+
+  /* Error Page */
+  .error-page {
+    margin: 40px auto;
+    padding: 40px 20px;
+  }
+
+  /* Slash Menu */
   .slash-menu {
     left: 16px !important;
     right: 16px;
     min-width: auto;
   }
+
+  /* Block Editor */
+  .block-row {
+    gap: 4px;
+  }
+
+  .block-type-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
+  .block-input {
+    font-size: 0.95rem;
+  }
 }
 
+/* ============================================
+   RESPONSIVE — Mobile (480px)
+   ============================================ */
 @media (max-width: 480px) {
+
+  /* Header */
   .header-inner {
-    padding: 0 16px;
+    padding: 0 12px;
+    height: 52px;
+  }
+
+  .logo-text {
+    font-size: 1rem;
+  }
+
+  .header-actions {
+    gap: 0;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 32px 16px 20px;
+    margin-top: 30px;
+    margin-bottom: 30px;
+  }
+
+  .hero-title {
+    font-size: 2.2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.9rem;
+  }
+
+  /* Feature Cards */
+  .features {
+    padding: 12px 16px 48px;
+  }
+
+  .feature-card {
+    padding: 20px 16px;
+    gap: 10px;
+  }
+
+  .feature-desc {
+    padding-left: 0;
+    font-size: 0.8rem;
+  }
+
+  /* Tool Page */
+  .tool-page {
+    padding: 12px 12px;
+  }
+
+  .breadcrumb {
+    font-size: 0.8rem;
+  }
+
+  .publish-btn {
+    padding: 7px 16px;
+    font-size: 0.8rem;
+  }
+
+  /* File Upload */
+  .file-upload-zone {
+    min-height: 220px;
+    padding: 20px 12px;
+  }
+
+  .upload-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+  }
+
+  .upload-title {
+    font-size: 1rem;
+  }
+
+  .upload-desc {
+    font-size: 0.8rem;
+  }
+
+  .upload-limit {
+    font-size: 0.7rem;
+  }
+
+  .files-list-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .file-preview {
+    padding: 10px 12px;
+  }
+
+  .file-preview-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+
+  .file-preview-name {
+    font-size: 0.8rem;
+  }
+
+  /* Publish Modal */
+  .publish-modal-overlay {
+    padding: 12px;
+  }
+
+  .publish-modal {
+    padding: 20px 16px;
+  }
+
+  .publish-modal-title {
+    font-size: 1.1rem;
+  }
+
+  .expiry-pills {
+    gap: 4px;
+  }
+
+  .expiry-pill {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  /* Published Result */
+  .published-content {
+    padding: 24px 16px;
+  }
+
+  .published-title {
+    font-size: 1.1rem;
+  }
+
+  .published-code-char {
+    width: 36px;
+    height: 46px;
+    font-size: 1.2rem;
+  }
+
+  .published-code {
+    gap: 4px;
+  }
+
+  .published-qr-section {
+    padding: 16px;
+  }
+
+  /* Search Modal */
+  .search-modal {
+    padding: 24px 16px;
+  }
+
+  .search-modal-title {
+    font-size: 1.1rem;
   }
 
   .search-code-box {
@@ -2415,5 +2824,40 @@ textarea {
 
   .search-code-dot {
     margin: 0 2px;
+  }
+
+  /* View Share */
+  .view-page {
+    padding: 16px 12px;
+  }
+
+  .view-card-title {
+    font-size: 1.2rem;
+  }
+
+  .view-card-header {
+    padding: 16px 12px;
+  }
+
+  .view-card-body {
+    padding: 12px;
+  }
+
+  .view-text-content {
+    font-size: 0.9rem;
+  }
+
+  .view-image-preview {
+    max-height: 300px;
+  }
+
+  .download-btn {
+    padding: 10px 16px;
+    font-size: 0.8rem;
+  }
+
+  /* Post Cards */
+  .post-card-code {
+    font-size: 0.9rem;
   }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { FiFile, FiImage, FiFileText, FiDownload, FiLock, FiClock, FiArrowLeft } from 'react-icons/fi';
+import { FiFile, FiImage, FiFileText, FiDownload, FiLock, FiClock, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function ViewShare() {
@@ -185,7 +185,7 @@ export default function ViewShare() {
     if (status === 'error') {
         return (
             <div className="error-page">
-                <div className="error-icon">😔</div>
+                <div className="error-icon"><FiAlertTriangle /></div>
                 <h2 className="error-title">Share Not Found</h2>
                 <p className="error-desc">
                     {error || 'This share does not exist or has expired.'}
