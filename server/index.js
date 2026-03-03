@@ -1,12 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+dotenv.config(); // Load ENV as early as possible
+
 const { MongoClient } = require('mongodb');
+const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const cloudinary = require('cloudinary').v2;
 const cron = require('node-cron');
 const shareRoutes = require('./routes/share');
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 6500;
@@ -22,6 +23,16 @@ cloudinary.config({
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// S3 config
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    }
+});
+const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
 
 // MongoDB connection
 let db;
@@ -84,20 +95,30 @@ function startCleanupJob() {
 
                     for (const { publicId, resourceType } of filesToDelete) {
                         try {
-                            const result = await cloudinary.uploader.destroy(publicId, {
-                                resource_type: resourceType
-                            });
-                            console.log(`  ✓ Cloudinary: deleted ${publicId} (${resourceType}) → ${result.result}`);
+                            // Detect if the file is an S3 object based on the resource type flag we set in create handler
+                            if (resourceType === 's3' || share.cloudinaryResourceType === 's3') {
+                                await s3Client.send(new DeleteObjectCommand({
+                                    Bucket: BUCKET_NAME,
+                                    Key: publicId
+                                }));
+                                console.log(`  ✓ S3: deleted object ${publicId} → ok`);
+                            } else {
+                                // Fallback to Cloudinary for strictly backward compatible objects
+                                const result = await cloudinary.uploader.destroy(publicId, {
+                                    resource_type: resourceType
+                                });
+                                console.log(`  ✓ Cloudinary: deleted ${publicId} (${resourceType}) → ${result.result}`);
 
-                            if (result.result === 'not found') {
-                                const otherTypes = ['image', 'video', 'raw'].filter(t => t !== resourceType);
-                                for (const altType of otherTypes) {
-                                    const altResult = await cloudinary.uploader.destroy(publicId, {
-                                        resource_type: altType
-                                    });
-                                    if (altResult.result === 'ok') {
-                                        console.log(`  ✓ Cloudinary: deleted with alt type ${altType}`);
-                                        break;
+                                if (result.result === 'not found') {
+                                    const otherTypes = ['image', 'video', 'raw'].filter(t => t !== resourceType);
+                                    for (const altType of otherTypes) {
+                                        const altResult = await cloudinary.uploader.destroy(publicId, {
+                                            resource_type: altType
+                                        });
+                                        if (altResult.result === 'ok') {
+                                            console.log(`  ✓ Cloudinary: deleted with alt type ${altType}`);
+                                            break;
+                                        }
                                     }
                                 }
                             }

@@ -86,11 +86,31 @@ export default function ViewShare() {
         return <FiFile />;
     };
 
-    const handleDownload = async (fileUrl, fileName) => {
+    const handleDownload = async (fileUrl, fileName, filePublicId) => {
         if (!fileUrl) return;
         setDownloading(true);
         try {
-            const response = await fetch(fileUrl);
+            // Check if it's an S3 url or old Cloudinary url
+            if (filePublicId && fileUrl.includes('amazonaws.com')) {
+                // Generate a fresh presigned URL to force download
+                const res = await fetch(`${API_URL}/api/share/download-url?key=${encodeURIComponent(filePublicId)}&name=${encodeURIComponent(fileName || 'download')}`);
+                const data = await res.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                    return;
+                }
+            }
+
+            // Fallback for Cloudinary files or if S3 presigning fails
+            const response = await fetch(fileUrl, {
+                mode: 'cors',
+                cache: 'no-cache', // Bypass browser cache in case it cached a non-CORS response previously
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -100,7 +120,9 @@ export default function ViewShare() {
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-        } catch {
+        } catch (err) {
+            console.error('Download fetch failed:', err);
+            // Fallback: simply open the URL in a new tab if fetch is still blocked
             window.open(fileUrl, '_blank');
         } finally {
             setDownloading(false);
@@ -281,7 +303,7 @@ export default function ViewShare() {
                                     )}
                                     <button
                                         className="download-btn"
-                                        onClick={() => handleDownload(file.fileUrl, file.fileName)}
+                                        onClick={() => handleDownload(file.fileUrl, file.fileName, file.filePublicId)}
                                         disabled={downloading}
                                     >
                                         <FiDownload /> {downloading ? 'Downloading...' : `Download${(shareData.files || []).length > 1 ? '' : ' File'}`}

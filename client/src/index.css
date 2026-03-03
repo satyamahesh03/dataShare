@@ -172,13 +172,19 @@ textarea {
 }
 
 .logo-text {
-  font-size: 1.25rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.5px;
 }
 
-.logo-dot {
+.logo-icon {
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+.logo-dot,
+.logo-highlight {
   color: var(--accent);
 }
 
@@ -224,15 +230,15 @@ textarea {
 }
 
 .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   transition: all 0.2s ease;
-  font-size: 1.15rem;
+  font-size: 1.5rem;
 }
 
 .icon-btn:hover {
@@ -2356,6 +2362,27 @@ textarea {
 }
 
 /* ============================================
+   WEBM ROCKET UPLOAD ANIMATION
+   ============================================ */
+.upload-rocket-container {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  width: 150px;
+  height: 150px;
+  transition: all 0.3s ease-out;
+  filter: drop-shadow(0 4px 12px rgba(245, 158, 11, 0.2));
+  /* Start off-screen bottom-left visually adjusting relative to pure center */
+  transform: translate(-50%, 50%);
+}
+
+.upload-rocket-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ============================================
    RESPONSIVE — Tablet (768px)
    ============================================ */
 @media (max-width: 768px) {
@@ -2363,11 +2390,21 @@ textarea {
   /* Header */
   .header-inner {
     padding: 0 16px;
-    height: 56px;
+    height: 60px;
   }
 
   .logo-text {
-    font-size: 1.1rem;
+    font-size: 1.4rem;
+  }
+
+  .logo-icon {
+    font-size: 1.6rem;
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.35rem;
   }
 
   .header-search {

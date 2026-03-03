@@ -112,21 +112,48 @@ export default function FileShare() {
                 setUploadProgress(Math.round(((i + 1) / files.length) * 40));
             }
 
-            setUploadProgress(45);
+            // Real network upload takes up 40% to 90%
+            const data = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
 
-            const res = await fetch(`${API_URL}/api/share/create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = 40 + Math.round((e.loaded / e.total) * 50);
+                        setUploadProgress(percentComplete);
+                    }
+                };
+
+                xhr.open('POST', `${API_URL}/api/share/create`);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            resolve(JSON.parse(xhr.responseText));
+                        } catch (parseError) {
+                            reject(new Error('Invalid JSON response'));
+                        }
+                    } else {
+                        try {
+                            const errorData = JSON.parse(xhr.responseText);
+                            reject(new Error(errorData.error || `HTTP Error: ${xhr.status}`));
+                        } catch {
+                            reject(new Error(`HTTP Error: ${xhr.status}`));
+                        }
+                    }
+                };
+
+                xhr.onerror = () => reject(new Error('Network Error'));
+
+                xhr.send(JSON.stringify({
                     type: 'file',
                     files: filesData,
                     expiryMinutes,
                     password,
-                }),
+                }));
             });
 
             setUploadProgress(90);
-            const data = await res.json();
             if (data.success) {
                 savePublishedPost({ code: data.code, expiresAt: data.expiresAt, type: 'file' });
                 setShareResult(data);
@@ -247,6 +274,7 @@ export default function FileShare() {
                 onClose={() => setShowPublishModal(false)}
                 onPublish={handlePublish}
                 loading={loading}
+                uploadProgress={uploadProgress}
             />
 
             {shareResult && (
@@ -254,6 +282,26 @@ export default function FileShare() {
                     shareData={shareResult}
                     onClose={handleCloseResult}
                 />
+            )}
+
+            {/* High-Fidelity WebM Rocket Upload Animation */}
+            {loading && uploadProgress > 0 && (
+                <div
+                    className="upload-rocket-container"
+                    style={{
+                        bottom: `${uploadProgress}%`,
+                        left: `${uploadProgress}%`
+                    }}
+                >
+                    <video
+                        className="upload-rocket-video"
+                        src="/Rocket in Space (Transparent Background).webm"
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                    />
+                </div>
             )}
         </main>
     );

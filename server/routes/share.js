@@ -1,8 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const cloudinary = require('cloudinary').v2;
+const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const bcrypt = require('bcryptjs');
 const { nanoid } = require('nanoid');
+
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    }
+});
+const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
 
 // Generate a unique 6-char code (no ambiguous chars)
 function generateCode() {
@@ -87,20 +97,36 @@ router.post('/create', async (req, res) => {
 
             const uploadedFiles = [];
             try {
-                for (const f of filesToUpload) {
-                    const uploadResult = await cloudinary.uploader.upload(f.fileData, {
-                        folder: 'datashare',
-                        resource_type: 'auto',
-                        public_id: `${code}_${Date.now()}_${uploadedFiles.length}`,
+                for (let index = 0; index < filesToUpload.length; index++) {
+                    const f = filesToUpload[index];
+
+                    // Convert base64 payload to binary Buffer for S3
+                    const base64Data = f.fileData.replace(/^data:.*?;base64,/, '');
+                    const buffer = Buffer.from(base64Data, 'base64');
+
+                    // Sanitize file name for friendly S3 URL (only valid URL chars)
+                    const sanitizedName = (f.fileName || 'unnamed_file').replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const publicId = `${code}_${Date.now()}_${index}_${sanitizedName}`;
+
+                    const command = new PutObjectCommand({
+                        Bucket: BUCKET_NAME,
+                        Key: publicId,
+                        Body: buffer,
+                        ContentType: f.fileType || 'application/octet-stream',
                     });
 
+                    await s3Client.send(command);
+
+                    const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${publicId}`;
+
                     uploadedFiles.push({
-                        fileUrl: uploadResult.secure_url,
-                        filePublicId: uploadResult.public_id,
+                        fileUrl: fileUrl,
+                        filePublicId: publicId, // S3 key
                         fileName: f.fileName || 'unnamed_file',
                         fileType: f.fileType || 'application/octet-stream',
-                        fileSize: f.fileSize || 0,
-                        cloudinaryResourceType: uploadResult.resource_type,
+                        fileSize: f.fileSize || buffer.length,
+                        // keeping field name for backward compatibility below
+                        cloudinaryResourceType: 's3',
                     });
                 }
 
@@ -114,7 +140,7 @@ router.post('/create', async (req, res) => {
                 shareDoc.fileSize = uploadedFiles[0].fileSize;
                 shareDoc.cloudinaryResourceType = uploadedFiles[0].cloudinaryResourceType;
             } catch (uploadErr) {
-                console.error('Cloudinary upload error:', uploadErr);
+                console.error('S3 upload error:', uploadErr);
                 return res.status(500).json({ error: 'File upload failed' });
             }
         }
@@ -162,6 +188,26 @@ router.get('/lookup/:code', async (req, res) => {
     } catch (err) {
         console.error('Lookup error:', err);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// GET /api/share/download-url — Generate a time-limited AWS S3 download link that forces an attachment
+router.get('/download-url', async (req, res) => {
+    try {
+        const { key, name } = req.query;
+        if (!key) return res.status(400).json({ error: 'Missing S3 key' });
+
+        const command = new GetObjectCommand({
+            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Key: key,
+            ResponseContentDisposition: `attachment; filename="${name || 'download'}"`
+        });
+
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        res.json({ url: signedUrl });
+    } catch (err) {
+        console.error('Presigner error:', err);
+        res.status(500).json({ error: 'Failed to generate download URL' });
     }
 });
 
