@@ -8,6 +8,7 @@ const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const cloudinary = require('cloudinary').v2;
 const cron = require('node-cron');
 const shareRoutes = require('./routes/share');
+const secureRoutes = require('./routes/secure');
 
 const app = express();
 const PORT = process.env.PORT || 6500;
@@ -54,6 +55,17 @@ async function connectDB() {
         await db.collection('shares').createIndex(
             { code: 1 },
             { unique: true }
+        );
+
+        // Drop old code index if it exists (no longer needed)
+        try {
+            await db.collection('secure_messages').dropIndex('code_1');
+        } catch (e) { /* index might not exist, ignore */ }
+
+        // TTL index for auto-deleting expired messages
+        await db.collection('secure_messages').createIndex(
+            { expiresAt: 1 },
+            { expireAfterSeconds: 0 }
         );
 
         console.log('✅ Connected to MongoDB');
@@ -149,6 +161,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/share', shareRoutes);
+app.use('/api/secure', secureRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

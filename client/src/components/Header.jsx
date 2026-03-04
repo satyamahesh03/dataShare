@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { FiSearch, FiSun, FiMoon, FiShare2, FiLayers } from 'react-icons/fi';
+import { FiSearch, FiSun, FiMoon, FiShare2, FiLayers, FiShield } from 'react-icons/fi';
 import SearchModal from './SearchModal';
 
 export default function Header() {
@@ -35,6 +35,15 @@ export default function Header() {
                             aria-label="Published Posts"
                         >
                             <FiLayers />
+                        </Link>
+
+                        <Link
+                            to="/secure/encrypt"
+                            className="icon-btn"
+                            title="SafeVault (AES-256)"
+                            aria-label="Secure Encrypt"
+                        >
+                            <FiShield />
                         </Link>
 
                         <button

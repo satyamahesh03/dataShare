@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FiFileText, FiFolder } from 'react-icons/fi';
+import { FiFileText, FiFolder, FiShield } from 'react-icons/fi';
 
 export default function Home() {
     return (
@@ -35,6 +35,18 @@ export default function Home() {
                     </div>
                     <p className="feature-desc">
                         Send files fast.
+                    </p>
+                </Link>
+
+                <Link to="/secure/encrypt" className="feature-card">
+                    <div className="feature-card-top">
+                        <div className="feature-icon">
+                            <FiShield />
+                        </div>
+                        <h3 className="feature-title">SafeVault</h3>
+                    </div>
+                    <p className="feature-desc">
+                        Encrypt & decrypt messages with a password.
                     </p>
                 </Link>
             </section>
