@@ -197,10 +197,22 @@ router.get('/download-url', async (req, res) => {
         const { key, name } = req.query;
         if (!key) return res.status(400).json({ error: 'Missing S3 key' });
 
+        const originalName = name || 'download';
+        // Create an ASCII-safe filename by replacing non-ASCII & problematic chars
+        const safeName = originalName
+            .replace(/[\u2018\u2019]/g, "'")   // smart single quotes → ASCII apostrophe
+            .replace(/[\u201C\u201D]/g, '"')    // smart double quotes → ASCII double quote (will be stripped next)
+            .replace(/[^\x20-\x7E]/g, '_')     // replace any remaining non-ASCII with underscore
+            .replace(/"/g, "'");                // replace double quotes (they break the header value)
+
+        // Build Content-Disposition with both ASCII fallback and UTF-8 encoded original
+        const utf8Name = encodeURIComponent(originalName);
+        const disposition = `attachment; filename="${safeName}"; filename*=UTF-8''${utf8Name}`;
+
         const command = new GetObjectCommand({
             Bucket: process.env.AWS_S3_BUCKET_NAME,
             Key: key,
-            ResponseContentDisposition: `attachment; filename="${name || 'download'}"`
+            ResponseContentDisposition: disposition,
         });
 
         const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
