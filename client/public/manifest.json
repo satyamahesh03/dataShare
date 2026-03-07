@@ -4,7 +4,7 @@
     "description": "Share text and files instantly with a unique code and QR. No sign-up needed. Data auto-expires for privacy.",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#000000",
     "theme_color": "#000000",
     "orientation": "portrait-primary",
     "categories": [
