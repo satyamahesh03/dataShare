@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { FiClock, FiLock, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
 
 const EXPIRY_OPTIONS = [
@@ -16,6 +16,32 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
     const [passwordEnabled, setPasswordEnabled] = useState(false);
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    // Slider logic
+    const expiryBarRef = useRef(null);
+    const [sliderStyle, setSliderStyle] = useState({});
+
+    const updateSlider = useCallback(() => {
+        if (!expiryBarRef.current) return;
+        const bar = expiryBarRef.current;
+        const activeBtn = bar.querySelector('.expiry-pill.active');
+        if (activeBtn) {
+            setSliderStyle({
+                left: activeBtn.offsetLeft,
+                top: activeBtn.offsetTop,
+                width: activeBtn.offsetWidth,
+                height: activeBtn.offsetHeight,
+            });
+        }
+    }, [selectedExpiry]);
+
+    // Re-run slider when modal opens or layout changes
+    useEffect(() => {
+        if (isOpen) {
+            // Slight delay to ensure DOM has rendered before measuring
+            setTimeout(updateSlider, 50);
+        }
+    }, [isOpen, selectedExpiry, updateSlider]);
 
     const currentExpiry = EXPIRY_OPTIONS[selectedExpiry];
 
@@ -49,7 +75,16 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
                         </span>
                         <span className="expiry-value">{currentExpiry.label}</span>
                     </div>
-                    <div className="expiry-pills">
+                    <div className="expiry-bar" ref={expiryBarRef} style={{ marginTop: '12px' }}>
+                        <div
+                            className="expiry-slider"
+                            style={{
+                                left: sliderStyle.left,
+                                top: sliderStyle.top,
+                                width: sliderStyle.width,
+                                height: sliderStyle.height,
+                            }}
+                        />
                         {EXPIRY_OPTIONS.map((opt, i) => (
                             <button
                                 key={opt.value}

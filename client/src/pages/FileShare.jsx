@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { FiUploadCloud, FiFile, FiX, FiImage, FiFileText, FiPlus } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiUploadCloud, FiFile, FiX, FiImage, FiFileText, FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { useToast } from '../context/ToastContext';
 import { savePublishedPost } from '../utils/publishedPosts';
 import ShareResult from '../components/ShareResult';
@@ -18,6 +18,7 @@ export default function FileShare() {
     const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef(null);
     const { addToast } = useToast();
+    const navigate = useNavigate();
 
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
@@ -181,6 +182,9 @@ export default function FileShare() {
         <main className="tool-page">
             <div className="tool-header">
                 <div className="breadcrumb">
+                    <button className="back-btn" onClick={() => navigate('/')} aria-label="Go back">
+                        <FiArrowLeft />
+                    </button>
                     <Link to="/">Tools</Link>
                     <span className="separator">/</span>
                     <span className="current">File Sharing</span>

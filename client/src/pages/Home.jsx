@@ -9,7 +9,7 @@ export default function Home() {
                     Share anything,<br />instantly.
                 </h1>
                 <p className="hero-subtitle">
-                    Text, files — shared with a code. No sign-up needed.
+                    Securely share texts and files in seconds. No account required.
                 </p>
             </section>
 

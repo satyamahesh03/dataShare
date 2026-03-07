@@ -205,8 +205,17 @@ export default function BlockEditor({ onContentChange }) {
         return count;
     };
 
+    const handleEditorClick = (e) => {
+        // Check if the user clicked directly on the empty space of the editor container
+        if (e.target.classList.contains('block-editor')) {
+            if (blocks.length > 0) {
+                focusBlock(blocks[blocks.length - 1].id, true);
+            }
+        }
+    };
+
     return (
-        <div className="block-editor">
+        <div className="block-editor" onClick={handleEditorClick}>
             {blocks.map((block, index) => (
                 <div key={block.id} className={`block-row block-${block.type}`}>
                     {/* Block prefix */}

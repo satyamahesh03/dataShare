@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { savePublishedPost } from '../utils/publishedPosts';
 import ShareResult from '../components/ShareResult';
 import PublishModal from '../components/PublishModal';
 import BlockEditor from '../components/BlockEditor';
+import { FiArrowLeft } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function TextShare() {
@@ -13,6 +14,7 @@ export default function TextShare() {
     const [shareResult, setShareResult] = useState(null);
     const [showPublishModal, setShowPublishModal] = useState(false);
     const { addToast } = useToast();
+    const navigate = useNavigate();
 
     const handleContentChange = (content) => {
         setText(content);
@@ -65,6 +67,9 @@ export default function TextShare() {
         <main className="tool-page">
             <div className="tool-header">
                 <div className="breadcrumb">
+                    <button className="back-btn" onClick={() => navigate('/')} aria-label="Go back">
+                        <FiArrowLeft />
+                    </button>
                     <Link to="/">Tools</Link>
                     <span className="separator">/</span>
                     <span className="current">Text Sharing</span>

@@ -4,6 +4,7 @@ import { HiX } from 'react-icons/hi';
 function InstallPWA() {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [showBanner, setShowBanner] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
 
     useEffect(() => {
         const handler = (e) => {
@@ -26,6 +27,15 @@ function InstallPWA() {
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
 
+    useEffect(() => {
+        if (showBanner && !collapsed) {
+            const timer = setTimeout(() => {
+                setCollapsed(true);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [showBanner, collapsed]);
+
     const handleInstall = async () => {
         if (!deferredPrompt) return;
         deferredPrompt.prompt();
@@ -42,6 +52,19 @@ function InstallPWA() {
 
     if (!showBanner) return null;
 
+    if (collapsed) {
+        return (
+            <div className="pwa-pill" id="pwa-install-banner">
+                <button className="pwa-pill-btn" onClick={handleInstall} id="pwa-install-button">
+                    Install App
+                </button>
+                <button className="pwa-pill-close" onClick={handleDismiss} aria-label="Dismiss">
+                    <HiX />
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="pwa-toast" id="pwa-install-banner">
             <button className="pwa-toast-close" onClick={handleDismiss} aria-label="Dismiss">
@@ -50,7 +73,7 @@ function InstallPWA() {
             <img src="/icon-192.png" alt="DataShare" className="pwa-toast-icon" />
             <p className="pwa-toast-title">Install DataShare</p>
             <p className="pwa-toast-desc">Get quick access from your home screen</p>
-            <button className="pwa-toast-btn" onClick={handleInstall} id="pwa-install-button">
+            <button className="pwa-toast-btn" onClick={handleInstall}>
                 Install App
             </button>
         </div>

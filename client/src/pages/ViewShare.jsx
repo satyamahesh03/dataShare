@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { FiFile, FiImage, FiFileText, FiDownload, FiLock, FiClock, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
+import { FiFile, FiImage, FiFileText, FiDownload, FiLock, FiClock, FiArrowLeft, FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function ViewShare() {
@@ -12,6 +12,7 @@ export default function ViewShare() {
     const [error, setError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [downloading, setDownloading] = useState(false);
+    const [showPw, setShowPw] = useState(false);
 
     useEffect(() => {
         lookupShare();
@@ -232,14 +233,19 @@ export default function ViewShare() {
                         This share is password protected. Enter the password to view the content.
                     </p>
                     <form onSubmit={handlePasswordSubmit}>
-                        <input
-                            type="password"
-                            className="password-gate-input"
-                            placeholder="Enter password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            autoFocus
-                        />
+                        <div className="pw-input-wrap pw-gate-wrap">
+                            <input
+                                type={showPw ? 'text' : 'password'}
+                                className="password-gate-input"
+                                placeholder="Enter password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoFocus
+                            />
+                            <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)}>
+                                {showPw ? <FiEyeOff /> : <FiEye />}
+                            </button>
+                        </div>
                         {passwordError && (
                             <p className="password-gate-error">{passwordError}</p>
                         )}
