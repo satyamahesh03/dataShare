@@ -3354,3 +3354,137 @@ textarea {
     font-size: 0.9rem;
   }
 }
+
+/* ============================================
+   PWA INSTALL TOAST
+   ============================================ */
+.pwa-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 24px 20px 20px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  animation: pwa-pop-in 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pwa-pop-in {
+  from {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.pwa-toast-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.pwa-toast-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.pwa-toast-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+}
+
+.pwa-toast-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.pwa-toast-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.pwa-toast-btn {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+  transition: all 0.2s ease;
+}
+
+.pwa-toast-btn:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+@media (max-width: 480px) {
+  .pwa-toast {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    text-align: left;
+    padding: 14px 16px;
+    gap: 4px;
+  }
+
+  .pwa-toast-close {
+    top: 6px;
+    right: 6px;
+  }
+
+  .pwa-toast-icon {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+  }
+
+  .pwa-toast-title {
+    flex: 1;
+    font-size: 0.85rem;
+  }
+
+  .pwa-toast-desc {
+    display: none;
+  }
+
+  .pwa-toast-btn {
+    width: auto;
+    margin-top: 0;
+    margin-left: auto;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+  }
+}

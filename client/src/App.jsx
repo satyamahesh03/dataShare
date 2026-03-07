@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import InstallPWA from './components/InstallPWA';
 import Home from './pages/Home';
 import TextShare from './pages/TextShare';
 import FileShare from './pages/FileShare';
@@ -18,6 +19,7 @@ function App() {
       <ToastProvider>
         <Router>
           <Header />
+          <InstallPWA />
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/text" element={<TextShare />} />
