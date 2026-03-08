@@ -15,7 +15,7 @@ export default function Header() {
                 <div className="header-inner">
                     <Link to="/" className="logo">
                         <FiShare2 className="logo-icon" />
-                        <span className="logo-text">data<span className="logo-highlight">share</span></span>
+                        <span className="logo-text">Data<span className="logo-highlight">Share</span></span>
                     </Link>
 
                     <div className="header-actions">

@@ -5,11 +5,11 @@
    ============================================ */
 :root {
   /* Colors - Light Mode */
-  --bg-primary: #F9F8F6;
-  --bg-secondary: #F0EFEB;
-  --bg-card: rgba(255, 255, 252, 0.65);
-  --bg-input: rgba(245, 243, 238, 0.6);
-  --bg-hover: rgba(235, 230, 223, 0.8);
+  --bg-primary: #F8F5E9;
+  --bg-secondary: #F2EFE2;
+  --bg-card: rgba(253, 252, 247, 0.65);
+  --bg-input: rgba(240, 236, 225, 0.6);
+  --bg-hover: rgba(232, 227, 214, 0.8);
 
   --text-primary: #2C2A28;
   --text-secondary: #5C5855;
@@ -19,10 +19,10 @@
   --accent: #3A3532;
   --accent-hover: #1E1B1A;
   --accent-light: rgba(58, 53, 50, 0.06);
-  --accent-soft: #EFECE7;
+  --accent-soft: #EBE6D8;
 
-  --border: rgba(215, 211, 204, 0.6);
-  --border-light: rgba(230, 227, 221, 0.5);
+  --border: rgba(215, 210, 198, 0.6);
+  --border-light: rgba(230, 226, 215, 0.5);
   --border-focus: #3A3532;
 
   --danger: #ef4444;
