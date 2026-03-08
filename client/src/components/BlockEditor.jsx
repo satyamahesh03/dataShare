@@ -3,7 +3,6 @@ import { FiType, FiCheckSquare, FiList, FiHash } from 'react-icons/fi';
 
 const BLOCK_TYPES = [
     { type: 'text', label: 'Text', desc: 'Just start typing with plain text.', icon: '¶' },
-    { type: 'todo', label: 'To-do List', desc: 'Track tasks with a to-do list.', icon: '☑' },
     { type: 'h1', label: 'Heading 1', desc: 'Big section heading.', icon: 'H₁' },
     { type: 'h2', label: 'Heading 2', desc: 'Medium section heading.', icon: 'H₂' },
     { type: 'h3', label: 'Heading 3', desc: 'Small section heading.', icon: 'H₃' },
@@ -33,7 +32,6 @@ export default function BlockEditor({ onContentChange }) {
                 case 'h3': return `### ${content}`;
                 case 'bullet': return `• ${content}`;
                 case 'numbered': return `${i + 1}. ${content}`;
-                case 'todo': return `${block.checked ? '☑' : '☐'} ${content}`;
                 default: return content;
             }
         }).join('\n');
@@ -64,6 +62,14 @@ export default function BlockEditor({ onContentChange }) {
             }
         }, 10);
     };
+
+    // Auto-focus root block on mount
+    useEffect(() => {
+        if (blocks.length > 0 && blocks[0].content === '') {
+            focusBlock(blocks[0].id, false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleInput = (index, e) => {
         const content = e.target.textContent;
@@ -115,7 +121,7 @@ export default function BlockEditor({ onContentChange }) {
         // Enter: create new block
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            const newType = ['bullet', 'numbered', 'todo'].includes(block.type) ? block.type : 'text';
+            const newType = ['bullet', 'numbered'].includes(block.type) ? block.type : 'text';
             const newBlock = createBlock(newType);
             setBlocks(prev => {
                 const newBlocks = [...prev];
@@ -179,10 +185,6 @@ export default function BlockEditor({ onContentChange }) {
         );
     };
 
-    const toggleTodo = (index) => {
-        updateBlock(index, { checked: !blocks[index].checked });
-    };
-
     const getPlaceholder = (block, index) => {
         if (index === 0 && blocks.length === 1) return 'Type / for commands...';
         switch (block.type) {
@@ -191,7 +193,6 @@ export default function BlockEditor({ onContentChange }) {
             case 'h3': return 'Heading 3';
             case 'bullet': return 'List item';
             case 'numbered': return 'List item';
-            case 'todo': return 'To-do';
             default: return 'Type / for commands...';
         }
     };
@@ -225,19 +226,11 @@ export default function BlockEditor({ onContentChange }) {
                     {block.type === 'numbered' && (
                         <span className="block-prefix numbered-prefix">{getNumberedIndex(index)}.</span>
                     )}
-                    {block.type === 'todo' && (
-                        <span
-                            className={`block-prefix todo-checkbox ${block.checked ? 'checked' : ''}`}
-                            onClick={() => toggleTodo(index)}
-                        >
-                            {block.checked ? '☑' : '☐'}
-                        </span>
-                    )}
 
                     {/* Content editable */}
                     <div
                         ref={el => blockRefs.current[block.id] = el}
-                        className={`block-content ${block.type === 'todo' && block.checked ? 'checked' : ''}`}
+                        className="block-content"
                         contentEditable
                         suppressContentEditableWarning
                         data-placeholder={getPlaceholder(block, index)}

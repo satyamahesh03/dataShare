@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { FiSearch, FiSun, FiMoon, FiShare2, FiLayers } from 'react-icons/fi';
+import { FiSearch, FiSun, FiMoon, FiShare2 } from 'react-icons/fi';
+import { FaFolderOpen } from 'react-icons/fa';
 import SearchModal from './SearchModal';
 
 export default function Header() {
@@ -34,7 +35,7 @@ export default function Header() {
                             title="Published Posts"
                             aria-label="Published Posts"
                         >
-                            <FiLayers />
+                            <FaFolderOpen />
                         </Link>
 
 

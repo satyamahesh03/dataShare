@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock, FiUnlock, FiCopy, FiCheck, FiShield, FiLink, FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi';
 import { API_URL } from '../config';
+import { savePublishedPost } from '../utils/publishedPosts';
 
 const EXPIRY_OPTIONS = [
     { label: '15m', value: 0.25 },
@@ -26,7 +27,7 @@ export default function SecureText() {
     const [loading, setLoading] = useState(false);
     const [encryptedOutput, setEncryptedOutput] = useState('');
     const [decryptedText, setDecryptedText] = useState('');
-    const [pastedMessage, setPastedMessage] = useState('');
+    const [pastedMessage, setPastedMessage] = useState(location.state?.message || '');
     const [decryptPassword, setDecryptPassword] = useState('');
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
@@ -35,7 +36,20 @@ export default function SecureText() {
     const [showEncPw, setShowEncPw] = useState(false);
     const [showDecPw, setShowDecPw] = useState(false);
     const expiryBarRef = useRef(null);
+    const encRef = useRef(null);
+    const decRef = useRef(null);
     const [sliderStyle, setSliderStyle] = useState({});
+
+    // Explicitly auto-focus when mode changes or user navigates between features
+    useEffect(() => {
+        setTimeout(() => {
+            if (mode === 'encrypt' && !encryptedOutput && encRef.current) {
+                encRef.current.focus();
+            } else if (mode === 'decrypt' && !decryptedText && decRef.current) {
+                decRef.current.focus();
+            }
+        }, 50);
+    }, [mode, encryptedOutput, decryptedText]);
 
     const updateSlider = useCallback(() => {
         if (!expiryBarRef.current) return;
@@ -77,6 +91,18 @@ export default function SecureText() {
             setLoading(false);
             setText('');
             setPassword('');
+
+            // Calculate exact expiry date
+            const expDate = new Date();
+            expDate.setTime(expDate.getTime() + expiry * 60 * 60 * 1000);
+
+            // Save to published posts
+            savePublishedPost({
+                code: data.encryptedMessage,
+                expiresAt: expDate.toISOString(),
+                type: 'secure',
+            });
+
             setAnimationType('lock');
             setTimeout(() => {
                 setAnimationType(null);
@@ -231,6 +257,7 @@ export default function SecureText() {
                                     <>
                                         <div className="secure-textarea-wrap">
                                             <textarea
+                                                ref={encRef}
                                                 value={text}
                                                 onChange={(e) => setText(e.target.value)}
                                                 placeholder="Enter the message you want to encrypt..."
@@ -303,6 +330,7 @@ export default function SecureText() {
                                 ) : (
                                     <div className="secure-decrypt-form">
                                         <textarea
+                                            ref={decRef}
                                             className="secure-textarea"
                                             placeholder="Paste the encrypted text here..."
                                             value={pastedMessage}
