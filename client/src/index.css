@@ -2494,6 +2494,7 @@ textarea {
   width: 150px;
   height: 150px;
   transition: all 0.3s ease-out;
+  background: transparent;
   /* Removed filter: drop-shadow to fix the box rendering issue on transparent WebM videos */
   /* Start off-screen bottom-left visually adjusting relative to pure center */
   transform: translate(-50%, 50%);
@@ -2503,6 +2504,7 @@ textarea {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  background: transparent;
 }
 
 /* ============================================
