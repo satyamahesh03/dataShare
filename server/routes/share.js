@@ -24,6 +24,42 @@ function generateCode() {
     return code;
 }
 
+// POST /api/share/upload-url — Generate presigned upload URLs for S3
+router.post('/upload-url', async (req, res) => {
+    try {
+        const { files } = req.body;
+        if (!files || !Array.isArray(files) || files.length === 0) {
+            return res.status(400).json({ error: 'Files array is required' });
+        }
+
+        const uploadUrls = [];
+        for (let i = 0; i < files.length; i++) {
+            const { fileName, fileType } = files[i];
+            const sanitizedName = (fileName || 'unnamed_file').replace(/[^a-zA-Z0-9.-]/g, '_');
+            const publicId = `req_${Date.now()}_${i}_${sanitizedName}`;
+
+            const command = new PutObjectCommand({
+                Bucket: BUCKET_NAME,
+                Key: publicId,
+                ContentType: fileType || 'application/octet-stream',
+            });
+
+            const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            uploadUrls.push({
+                uploadUrl,
+                publicId,
+                fileName,
+                fileType,
+            });
+        }
+
+        res.json({ uploadUrls });
+    } catch (err) {
+        console.error('Presigned upload URL error:', err);
+        res.status(500).json({ error: 'Failed to generate upload URLs' });
+    }
+});
+
 // POST /api/share/create — Create a new share
 router.post('/create', async (req, res) => {
     try {
@@ -80,10 +116,8 @@ router.post('/create', async (req, res) => {
             shareDoc.textContent = textContent;
         }
 
-        // Handle file share — upload to Cloudinary (supports multiple files)
+        // Handle file share — support both direct-to-S3 and legacy base64
         if (type === 'file') {
-
-            // Build array of files to upload (support both old single-file and new multi-file format)
             let filesToUpload = [];
             if (filesArray && Array.isArray(filesArray)) {
                 filesToUpload = filesArray;
@@ -100,48 +134,59 @@ router.post('/create', async (req, res) => {
                 for (let index = 0; index < filesToUpload.length; index++) {
                     const f = filesToUpload[index];
 
-                    // Convert base64 payload to binary Buffer for S3
-                    const base64Data = f.fileData.replace(/^data:.*?;base64,/, '');
-                    const buffer = Buffer.from(base64Data, 'base64');
+                    if (f.publicId && !f.fileData) {
+                        // File was uploaded directly to S3 via presigned URL
+                        const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${f.publicId}`;
+                        uploadedFiles.push({
+                            fileUrl: fileUrl,
+                            filePublicId: f.publicId,
+                            fileName: f.fileName || 'unnamed_file',
+                            fileType: f.fileType || 'application/octet-stream',
+                            fileSize: f.fileSize || 0,
+                            cloudinaryResourceType: 's3',
+                        });
+                    } else if (f.fileData) {
+                        // Legacy handling: backend S3 upload from base64
+                        const base64Data = f.fileData.replace(/^data:.*?;base64,/, '');
+                        const buffer = Buffer.from(base64Data, 'base64');
+                        const sanitizedName = (f.fileName || 'unnamed_file').replace(/[^a-zA-Z0-9.-]/g, '_');
+                        const publicId = `${code}_${Date.now()}_${index}_${sanitizedName}`;
 
-                    // Sanitize file name for friendly S3 URL (only valid URL chars)
-                    const sanitizedName = (f.fileName || 'unnamed_file').replace(/[^a-zA-Z0-9.-]/g, '_');
-                    const publicId = `${code}_${Date.now()}_${index}_${sanitizedName}`;
+                        const command = new PutObjectCommand({
+                            Bucket: BUCKET_NAME,
+                            Key: publicId,
+                            Body: buffer,
+                            ContentType: f.fileType || 'application/octet-stream',
+                        });
 
-                    const command = new PutObjectCommand({
-                        Bucket: BUCKET_NAME,
-                        Key: publicId,
-                        Body: buffer,
-                        ContentType: f.fileType || 'application/octet-stream',
-                    });
+                        await s3Client.send(command);
+                        const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${publicId}`;
 
-                    await s3Client.send(command);
-
-                    const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${publicId}`;
-
-                    uploadedFiles.push({
-                        fileUrl: fileUrl,
-                        filePublicId: publicId, // S3 key
-                        fileName: f.fileName || 'unnamed_file',
-                        fileType: f.fileType || 'application/octet-stream',
-                        fileSize: f.fileSize || buffer.length,
-                        // keeping field name for backward compatibility below
-                        cloudinaryResourceType: 's3',
-                    });
+                        uploadedFiles.push({
+                            fileUrl: fileUrl,
+                            filePublicId: publicId,
+                            fileName: f.fileName || 'unnamed_file',
+                            fileType: f.fileType || 'application/octet-stream',
+                            fileSize: f.fileSize || buffer.length,
+                            cloudinaryResourceType: 's3',
+                        });
+                    }
                 }
 
                 shareDoc.files = uploadedFiles;
 
                 // Keep backward-compatible single-file fields for the first file
-                shareDoc.fileUrl = uploadedFiles[0].fileUrl;
-                shareDoc.filePublicId = uploadedFiles[0].filePublicId;
-                shareDoc.fileName = uploadedFiles[0].fileName;
-                shareDoc.fileType = uploadedFiles[0].fileType;
-                shareDoc.fileSize = uploadedFiles[0].fileSize;
-                shareDoc.cloudinaryResourceType = uploadedFiles[0].cloudinaryResourceType;
+                if (uploadedFiles.length > 0) {
+                    shareDoc.fileUrl = uploadedFiles[0].fileUrl;
+                    shareDoc.filePublicId = uploadedFiles[0].filePublicId;
+                    shareDoc.fileName = uploadedFiles[0].fileName;
+                    shareDoc.fileType = uploadedFiles[0].fileType;
+                    shareDoc.fileSize = uploadedFiles[0].fileSize;
+                    shareDoc.cloudinaryResourceType = uploadedFiles[0].cloudinaryResourceType;
+                }
             } catch (uploadErr) {
                 console.error('S3 upload error:', uploadErr);
-                return res.status(500).json({ error: 'File upload failed' });
+                return res.status(500).json({ error: 'File upload validation failed' });
             }
         }
 

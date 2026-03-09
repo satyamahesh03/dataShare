@@ -91,24 +91,6 @@ export default function FileShare() {
         return 'Publishing...';
     };
 
-    const startSmoothProgress = () => {
-        let current = 0;
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = setInterval(() => {
-            current += 5;
-            if (current >= 90) {
-                current = 90;
-                clearInterval(progressTimerRef.current);
-            }
-            setUploadProgress(current);
-        }, 300);
-    };
-
-    const stopSmoothProgress = () => {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-    };
-
     const handlePublishClick = () => {
         if (files.length === 0) {
             addToast('Please select at least one file to share', 'error');
@@ -120,80 +102,105 @@ export default function FileShare() {
     const handlePublish = async ({ expiryMinutes, password }) => {
         setLoading(true);
         setUploadProgress(0);
-        startSmoothProgress();
 
         try {
-            // Read all files as base64
-            const filesData = [];
+            // 1. Get Presigned URLs
+            const fileInfo = files.map(f => ({
+                fileName: f.name,
+                fileType: f.type,
+                fileSize: f.size
+            }));
+
+            const urlRes = await fetch(`${API_URL}/api/share/upload-url`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: fileInfo })
+            });
+
+            if (!urlRes.ok) {
+                const errData = await urlRes.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to get upload URLs');
+            }
+            const { uploadUrls } = await urlRes.json();
+
+            // 2. Upload to S3 directly
+            let totalBytesUploaded = 0;
+            const uploadedFilesArr = [];
+
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                const fileData = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
+                const { uploadUrl, publicId } = uploadUrls[i];
+
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhrRef.current = xhr;
+
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            const currentFileProgress = e.loaded;
+                            const overallProgress = Math.round(((totalBytesUploaded + currentFileProgress) / totalSize) * 90);
+                            setUploadProgress(overallProgress);
+                        }
+                    };
+
+                    xhr.open('PUT', uploadUrl);
+                    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            totalBytesUploaded += file.size;
+                            resolve();
+                        } else {
+                            reject(new Error(`S3 Upload failed: ${xhr.status}`));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('Network Error during S3 upload'));
+                    xhr.onabort = () => reject(new Error('Upload cancelled'));
+
+                    xhr.send(file);
                 });
-                filesData.push({
-                    fileData,
+
+                uploadedFilesArr.push({
+                    publicId,
                     fileName: file.name,
                     fileType: file.type,
-                    fileSize: file.size,
+                    fileSize: file.size
                 });
             }
 
-            const data = await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhrRef.current = xhr;
+            // 3. Create Share on Backend
+            setUploadProgress(95);
 
-                xhr.open('POST', `${API_URL}/api/share/create`);
-                xhr.setRequestHeader('Content-Type', 'application/json');
-
-                xhr.onabort = () => reject(new Error('Upload cancelled'));
-                xhr.onload = () => {
-                    stopSmoothProgress();
-                    setUploadProgress(100);
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        try {
-                            resolve(JSON.parse(xhr.responseText));
-                        } catch (parseError) {
-                            reject(new Error('Invalid JSON response'));
-                        }
-                    } else {
-                        try {
-                            const errorData = JSON.parse(xhr.responseText);
-                            reject(new Error(errorData.error || `HTTP Error: ${xhr.status}`));
-                        } catch {
-                            reject(new Error(`HTTP Error: ${xhr.status}`));
-                        }
-                    }
-                };
-
-                xhr.onerror = () => reject(new Error('Network Error'));
-
-                xhr.send(JSON.stringify({
+            const createRes = await fetch(`${API_URL}/api/share/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     type: 'file',
-                    files: filesData,
+                    files: uploadedFilesArr,
                     expiryMinutes,
-                    password,
-                }));
+                    password
+                })
             });
 
-            if (data.success) {
+            const data = await createRes.json().catch(() => ({}));
+
+            if (createRes.ok && data.success) {
+                setUploadProgress(100);
                 savePublishedPost({ code: data.code, expiresAt: data.expiresAt, type: 'file' });
                 setShareResult(data);
                 setShowPublishModal(false);
                 addToast(`${files.length} file(s) shared successfully!`, 'success');
             } else {
-                addToast(data.error || 'Failed to upload files', 'error');
+                throw new Error(data.error || 'Failed to finish creating share');
             }
+
         } catch (err) {
             if (err.message !== 'Upload cancelled') {
-                addToast('Upload failed. Please try again.', 'error');
+                addToast(err.message || 'Upload failed. Please try again.', 'error');
             } else {
                 addToast('Upload cancelled.', 'info');
             }
         } finally {
-            stopSmoothProgress();
             setLoading(false);
             setUploadProgress(0);
             xhrRef.current = null;
@@ -205,7 +212,6 @@ export default function FileShare() {
             xhrRef.current.abort();
             xhrRef.current = null;
         }
-        stopSmoothProgress();
         setShowPublishModal(false);
         setLoading(false);
         setUploadProgress(0);
