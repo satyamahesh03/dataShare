@@ -193,6 +193,13 @@ router.post('/create', async (req, res) => {
         // Insert into MongoDB
         await collection.insertOne(shareDoc);
 
+        // Increment global stats counter
+        await db.collection('app_stats').updateOne(
+            { _id: 'global' },
+            { $inc: { totalPublished: 1 } },
+            { upsert: true }
+        );
+
         res.status(201).json({
             success: true,
             code: shareDoc.code,
@@ -240,10 +247,25 @@ router.get('/lookup/:code', async (req, res) => {
 router.get('/stats', async (req, res) => {
     try {
         const db = req.db;
-        const totalShares = await db.collection('shares').countDocuments();
-        const totalSecure = await db.collection('secure_messages').countDocuments();
+        const stats = await db.collection('app_stats').findOne({ _id: 'global' });
+        let count = 0;
 
-        res.json({ totalPublished: totalShares + totalSecure });
+        if (stats && stats.totalPublished !== undefined) {
+            count = stats.totalPublished;
+        } else {
+            // Seed the counter with current existing documents if it doesn't exist yet
+            const totalShares = await db.collection('shares').countDocuments();
+            const totalSecure = await db.collection('secure_messages').countDocuments();
+            count = totalShares + totalSecure;
+
+            await db.collection('app_stats').updateOne(
+                { _id: 'global' },
+                { $set: { totalPublished: count } },
+                { upsert: true }
+            );
+        }
+
+        res.json({ totalPublished: count });
     } catch (err) {
         console.error('Stats error:', err);
         res.status(500).json({ error: 'Internal server error' });

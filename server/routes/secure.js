@@ -47,6 +47,13 @@ router.post('/encrypt', async (req, res) => {
             createdAt: new Date()
         });
 
+        // Increment global stats counter
+        await db.collection('app_stats').updateOne(
+            { _id: 'global' },
+            { $inc: { totalPublished: 1 } },
+            { upsert: true }
+        );
+
         res.json({ encryptedMessage });
 
     } catch (error) {

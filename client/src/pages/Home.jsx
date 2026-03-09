@@ -29,7 +29,7 @@ export default function Home() {
                 {stats !== null && (
                     <div className="global-stats-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', marginTop: '16px', backgroundColor: 'var(--surface-color)', borderRadius: '24px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>
                         <FiGlobe style={{ color: 'var(--primary-color)' }} />
-                        <span><strong style={{ color: 'var(--text-primary)' }}>{stats.toLocaleString()}</strong> items shared globally</span>
+                        <span><strong style={{ color: 'var(--text-primary)' }}>{stats.toLocaleString()}+</strong> items shared globally</span>
                     </div>
                 )}
             </section>
