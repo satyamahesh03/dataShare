@@ -55,7 +55,7 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
     if (!isOpen) return null;
 
     return (
-        <div className="publish-modal-overlay" onClick={onClose}>
+        <div className="publish-modal-overlay" onClick={!loading ? onClose : undefined}>
             <div className="publish-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="publish-modal-close" onClick={onClose}>
                     <FiX />

@@ -1,7 +1,22 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiFileText, FiFolder, FiShield } from 'react-icons/fi';
+import { FiFileText, FiFolder, FiShield, FiGlobe } from 'react-icons/fi';
+import { API_URL } from '../config';
 
 export default function Home() {
+    const [stats, setStats] = useState(null);
+
+    useEffect(() => {
+        fetch(`${API_URL}/api/share/stats`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.totalPublished !== undefined) {
+                    setStats(data.totalPublished);
+                }
+            })
+            .catch(err => console.error('Failed to fetch stats:', err));
+    }, []);
+
     return (
         <main>
             <section className="hero">
@@ -11,6 +26,12 @@ export default function Home() {
                 <p className="hero-subtitle">
                     Securely share texts and files in seconds. No account required.
                 </p>
+                {stats !== null && (
+                    <div className="global-stats-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', marginTop: '16px', backgroundColor: 'var(--surface-color)', borderRadius: '24px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>
+                        <FiGlobe style={{ color: 'var(--primary-color)' }} />
+                        <span><strong style={{ color: 'var(--text-primary)' }}>{stats.toLocaleString()}</strong> items shared globally</span>
+                    </div>
+                )}
             </section>
 
             <section className="features">

@@ -236,6 +236,20 @@ router.get('/lookup/:code', async (req, res) => {
     }
 });
 
+// GET /api/share/stats — Get total items published across all types
+router.get('/stats', async (req, res) => {
+    try {
+        const db = req.db;
+        const totalShares = await db.collection('shares').countDocuments();
+        const totalSecure = await db.collection('secure_messages').countDocuments();
+
+        res.json({ totalPublished: totalShares + totalSecure });
+    } catch (err) {
+        console.error('Stats error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // GET /api/share/download-url — Generate a time-limited AWS S3 download link that forces an attachment
 router.get('/download-url', async (req, res) => {
     try {
