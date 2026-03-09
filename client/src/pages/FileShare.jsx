@@ -342,6 +342,7 @@ export default function FileShare() {
                         src="/Rocket/index.html"
                         style={{ border: 'none', background: 'transparent' }}
                         title="Upload Animation"
+                        allowTransparency={true}
                     />
                 </div>
             )}
