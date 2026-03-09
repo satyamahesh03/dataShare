@@ -11,7 +11,7 @@ const EXPIRY_OPTIONS = [
     { value: 1440, label: '1 day' },
 ];
 
-export default function PublishModal({ isOpen, onClose, onPublish, loading, uploadProgress = 0 }) {
+export default function PublishModal({ isOpen, onClose, onPublish, loading, uploadProgress = 0, uploadText }) {
     const [selectedExpiry, setSelectedExpiry] = useState(2); // default 1 hr
     const [passwordEnabled, setPasswordEnabled] = useState(false);
     const [password, setPassword] = useState('');
@@ -137,7 +137,7 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
                     disabled={loading}
                 >
                     {loading && <span className="spinner" />}
-                    {loading ? (uploadProgress > 0 && uploadProgress < 100 ? `Publishing... ${uploadProgress}%` : 'Publishing...') : 'Publish'}
+                    {uploadText ? uploadText : (loading ? (uploadProgress > 0 && uploadProgress < 100 ? `Publishing... ${uploadProgress}%` : 'Publishing...') : 'Publish')}
                 </button>
             </div>
         </div>

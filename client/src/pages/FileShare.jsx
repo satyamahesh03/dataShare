@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiUploadCloud, FiFile, FiX, FiImage, FiFileText, FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { useToast } from '../context/ToastContext';
@@ -6,7 +6,7 @@ import { savePublishedPost } from '../utils/publishedPosts';
 import ShareResult from '../components/ShareResult';
 import PublishModal from '../components/PublishModal';
 import { API_URL } from '../config';
-const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
+const MAX_TOTAL_SIZE = 1024 * 1024 * 1024;
 const MAX_FILES = 5;
 
 export default function FileShare() {
@@ -17,6 +17,8 @@ export default function FileShare() {
     const [showPublishModal, setShowPublishModal] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef(null);
+    const xhrRef = useRef(null);
+    const progressTimerRef = useRef(null);
     const { addToast } = useToast();
     const navigate = useNavigate();
 
@@ -34,7 +36,7 @@ export default function FileShare() {
                 break;
             }
             if (addedTotal + f.size > MAX_TOTAL_SIZE) {
-                addToast(`Adding "${f.name}" would exceed 30MB limit`, 'error');
+                addToast(`Adding "${f.name}" would exceed 1GB limit`, 'error');
                 break;
             }
             // Avoid duplicates by name+size
@@ -72,13 +74,39 @@ export default function FileShare() {
     const formatSize = (bytes) => {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
     };
 
     const getFileIcon = (type) => {
         if (type?.startsWith('image/')) return <FiImage />;
         if (type?.startsWith('text/')) return <FiFileText />;
         return <FiFile />;
+    };
+
+    const getUploadText = () => {
+        if (!loading) return 'Publish';
+        if (uploadProgress >= 100) return 'Saving to Cloud...';
+        if (uploadProgress > 0) return `Uploading... ${uploadProgress}%`;
+        return 'Publishing...';
+    };
+
+    const startSmoothProgress = () => {
+        let current = 0;
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = setInterval(() => {
+            current += 5;
+            if (current >= 90) {
+                current = 90;
+                clearInterval(progressTimerRef.current);
+            }
+            setUploadProgress(current);
+        }, 300);
+    };
+
+    const stopSmoothProgress = () => {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
     };
 
     const handlePublishClick = () => {
@@ -92,6 +120,7 @@ export default function FileShare() {
     const handlePublish = async ({ expiryMinutes, password }) => {
         setLoading(true);
         setUploadProgress(0);
+        startSmoothProgress();
 
         try {
             // Read all files as base64
@@ -110,24 +139,19 @@ export default function FileShare() {
                     fileType: file.type,
                     fileSize: file.size,
                 });
-                setUploadProgress(Math.round(((i + 1) / files.length) * 40));
             }
 
-            // Real network upload takes up 40% to 90%
             const data = await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable) {
-                        const percentComplete = 40 + Math.round((e.loaded / e.total) * 50);
-                        setUploadProgress(percentComplete);
-                    }
-                };
+                xhrRef.current = xhr;
 
                 xhr.open('POST', `${API_URL}/api/share/create`);
                 xhr.setRequestHeader('Content-Type', 'application/json');
 
+                xhr.onabort = () => reject(new Error('Upload cancelled'));
                 xhr.onload = () => {
+                    stopSmoothProgress();
+                    setUploadProgress(100);
                     if (xhr.status >= 200 && xhr.status < 300) {
                         try {
                             resolve(JSON.parse(xhr.responseText));
@@ -154,22 +178,37 @@ export default function FileShare() {
                 }));
             });
 
-            setUploadProgress(90);
             if (data.success) {
                 savePublishedPost({ code: data.code, expiresAt: data.expiresAt, type: 'file' });
                 setShareResult(data);
                 setShowPublishModal(false);
-                setUploadProgress(100);
                 addToast(`${files.length} file(s) shared successfully!`, 'success');
             } else {
                 addToast(data.error || 'Failed to upload files', 'error');
             }
         } catch (err) {
-            addToast('Upload failed. Please try again.', 'error');
+            if (err.message !== 'Upload cancelled') {
+                addToast('Upload failed. Please try again.', 'error');
+            } else {
+                addToast('Upload cancelled.', 'info');
+            }
         } finally {
+            stopSmoothProgress();
             setLoading(false);
             setUploadProgress(0);
+            xhrRef.current = null;
         }
+    };
+
+    const handleCloseModal = () => {
+        if (loading && xhrRef.current) {
+            xhrRef.current.abort();
+            xhrRef.current = null;
+        }
+        stopSmoothProgress();
+        setShowPublishModal(false);
+        setLoading(false);
+        setUploadProgress(0);
     };
 
     const handleCloseResult = () => {
@@ -194,7 +233,7 @@ export default function FileShare() {
                     onClick={handlePublishClick}
                     disabled={files.length === 0}
                 >
-                    {loading ? `Uploading${uploadProgress > 0 ? ` ${uploadProgress}%` : '...'}` : 'Publish'}
+                    {getUploadText()}
                 </button>
             </div>
 
@@ -212,7 +251,7 @@ export default function FileShare() {
                         </div>
                         <p className="upload-title">Upload files</p>
                         <p className="upload-desc">Drag and drop your files here or click to upload</p>
-                        <p className="upload-limit">Up to 5 files · Maximum total size: 30MB</p>
+                        <p className="upload-limit">Up to 5 files · Maximum total size: 1GB</p>
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -225,7 +264,7 @@ export default function FileShare() {
                     <div className="files-list-area">
                         <div className="files-list-header">
                             <span className="files-list-count">
-                                {files.length} file{files.length !== 1 ? 's' : ''} · {formatSize(totalSize)} / 30 MB
+                                {files.length} file{files.length !== 1 ? 's' : ''} · {formatSize(totalSize)} / 1 GB
                             </span>
                             {files.length < MAX_FILES && (
                                 <button
@@ -275,10 +314,11 @@ export default function FileShare() {
 
             <PublishModal
                 isOpen={showPublishModal}
-                onClose={() => setShowPublishModal(false)}
+                onClose={handleCloseModal}
                 onPublish={handlePublish}
                 loading={loading}
                 uploadProgress={uploadProgress}
+                uploadText={loading ? getUploadText() : null}
             />
 
             {shareResult && (

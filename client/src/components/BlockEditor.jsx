@@ -77,8 +77,24 @@ export default function BlockEditor({ onContentChange }) {
 
         // Detect slash command
         if (content === '/') {
-            const rect = e.target.getBoundingClientRect();
-            setSlashMenu({ blockIndex: index, top: rect.bottom + 8, left: rect.left });
+            let rect = e.target.getBoundingClientRect();
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                const rangeRect = sel.getRangeAt(0).getBoundingClientRect();
+                if (rangeRect.top !== 0 || rangeRect.left !== 0) {
+                    rect = rangeRect;
+                }
+            }
+
+            const menuMaxHeight = 320;
+            let positionStyles = { top: '100%', left: 0, marginTop: '8px' };
+
+            // If menu drops below window viewport, anchor it above the caret
+            if (rect.bottom + menuMaxHeight > window.innerHeight) {
+                positionStyles = { bottom: '100%', left: 0, marginBottom: '8px' };
+            }
+
+            setSlashMenu({ blockIndex: index, styles: positionStyles });
             setSlashFilter('');
             setSelectedMenuItem(0);
         } else if (content.startsWith('/') && slashMenu?.blockIndex === index) {
@@ -218,7 +234,11 @@ export default function BlockEditor({ onContentChange }) {
     return (
         <div className="block-editor" onClick={handleEditorClick}>
             {blocks.map((block, index) => (
-                <div key={block.id} className={`block-row block-${block.type}`}>
+                <div
+                    key={block.id}
+                    className={`block-row block-${block.type}`}
+                    style={{ zIndex: slashMenu?.blockIndex === index ? 150 : 1 }}
+                >
                     {/* Block prefix */}
                     {block.type === 'bullet' && (
                         <span className="block-prefix bullet-prefix">•</span>
@@ -240,40 +260,41 @@ export default function BlockEditor({ onContentChange }) {
                             if (slashMenu && slashMenu.blockIndex !== index) setSlashMenu(null);
                         }}
                     />
+
+                    {/* Slash command menu anchored locally inside the relative row */}
+                    {slashMenu?.blockIndex === index && (
+                        <div
+                            className="slash-menu"
+                            ref={menuRef}
+                            style={slashMenu.styles}
+                        >
+                            <div className="slash-menu-inner">
+                                {getFilteredTypes().map((item, i) => (
+                                    <button
+                                        key={item.type}
+                                        className={`slash-menu-item ${i === selectedMenuItem ? 'active' : ''}`}
+                                        onMouseDown={e => {
+                                            e.preventDefault();
+                                            selectSlashCommand(item.type);
+                                        }}
+                                        onMouseEnter={() => setSelectedMenuItem(i)}
+                                    >
+                                        <span className="slash-menu-icon">{item.icon}</span>
+                                        <div className="slash-menu-text">
+                                            <span className="slash-menu-label">{item.label}</span>
+                                            <span className="slash-menu-desc">{item.desc}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                                {getFilteredTypes().length === 0 && (
+                                    <div className="slash-menu-empty">No results</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             ))}
 
-            {/* Slash command menu */}
-            {slashMenu && (
-                <div
-                    className="slash-menu"
-                    ref={menuRef}
-                    style={{ top: slashMenu.top, left: slashMenu.left }}
-                >
-                    <div className="slash-menu-inner">
-                        {getFilteredTypes().map((item, i) => (
-                            <button
-                                key={item.type}
-                                className={`slash-menu-item ${i === selectedMenuItem ? 'active' : ''}`}
-                                onMouseDown={e => {
-                                    e.preventDefault();
-                                    selectSlashCommand(item.type);
-                                }}
-                                onMouseEnter={() => setSelectedMenuItem(i)}
-                            >
-                                <span className="slash-menu-icon">{item.icon}</span>
-                                <div className="slash-menu-text">
-                                    <span className="slash-menu-label">{item.label}</span>
-                                    <span className="slash-menu-desc">{item.desc}</span>
-                                </div>
-                            </button>
-                        ))}
-                        {getFilteredTypes().length === 0 && (
-                            <div className="slash-menu-empty">No results</div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

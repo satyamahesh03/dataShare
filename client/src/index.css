@@ -2388,7 +2388,7 @@ textarea {
    SLASH COMMAND MENU
    ============================================ */
 .slash-menu {
-  position: fixed;
+  position: absolute;
   z-index: 150;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -2490,7 +2490,7 @@ textarea {
   width: 150px;
   height: 150px;
   transition: all 0.3s ease-out;
-  filter: drop-shadow(0 4px 12px rgba(245, 158, 11, 0.2));
+  /* Removed filter: drop-shadow to fix the box rendering issue on transparent WebM videos */
   /* Start off-screen bottom-left visually adjusting relative to pure center */
   transform: translate(-50%, 50%);
 }

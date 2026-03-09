@@ -63,13 +63,19 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) {
                 // Update cache in background
                 fetch(request).then((networkResponse) => {
-                    caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
-                });
+                    // Prevent caching partial content (HTTP 206 status codes like videos/audio streams)
+                    if (networkResponse.status !== 206) {
+                        caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse.clone()));
+                    }
+                }).catch(() => { /* ignore backgrounds fetch errors */ });
                 return cachedResponse;
             }
             return fetch(request).then((response) => {
-                const cloned = response.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+                // Skip caching on Partial content responses (video streams)
+                if (response.status !== 206) {
+                    const cloned = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+                }
                 return response;
             });
         })
