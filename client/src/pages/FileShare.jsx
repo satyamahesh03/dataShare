@@ -328,7 +328,7 @@ export default function FileShare() {
                 />
             )}
 
-            {/* High-Fidelity WebM Rocket Upload Animation */}
+            {/* Rocket Upload Animation */}
             {loading && uploadProgress > 0 && (
                 <div
                     className="upload-rocket-container"
@@ -337,13 +337,11 @@ export default function FileShare() {
                         left: `${uploadProgress}%`
                     }}
                 >
-                    <video
+                    <iframe
                         className="upload-rocket-video"
-                        src="/Rocket in Space (Transparent Background).webm"
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
+                        src="/Rocket/index.html"
+                        style={{ border: 'none', background: 'transparent' }}
+                        title="Upload Animation"
                     />
                 </div>
             )}

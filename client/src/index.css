@@ -509,6 +509,8 @@ textarea {
   max-width: 100%;
   margin: auto 0;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .content-area:focus-within,
@@ -550,6 +552,7 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex: 1;
   min-height: 400px;
   padding: 40px;
   cursor: pointer;
@@ -2259,6 +2262,7 @@ textarea {
   padding: 28px 40px;
   min-height: 380px;
   max-width: 100%;
+  flex: 1;
 }
 
 .block-row {
