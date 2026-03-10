@@ -34,7 +34,10 @@ export default function P2PReceive() {
     }, [downloadingFileIndex]);
 
     useEffect(() => {
-        const socket = io(API_URL);
+        const socket = io(API_URL, {
+            withCredentials: true,
+            transports: ['polling', 'websocket']
+        });
         socketRef.current = socket;
 
         socket.on('connect', () => {
@@ -149,7 +152,7 @@ export default function P2PReceive() {
                 } else if (message.type === 'file-end') {
                     // Capture current file metadata before it gets cleared
                     const completedFile = currentFileMetaRef.current;
-                    
+
                     if (!completedFile) {
                         console.error('File end received but no metadata found');
                         return;
@@ -282,13 +285,13 @@ export default function P2PReceive() {
         // Queue the rest
         if (pendingFiles.length > 1) {
             const remaining = pendingFiles.slice(1);
-            
+
             // Reset queue ref to ensure clean state
             downloadQueueRef.current = [];
             remaining.forEach(idx => {
                 downloadQueueRef.current.push(idx);
             });
-            
+
             console.log('Queued remaining files:', downloadQueueRef.current);
             setDownloadQueue([...downloadQueueRef.current]);
         }
@@ -338,13 +341,13 @@ export default function P2PReceive() {
 
                 {error ? (
                     <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                        <div style={{ 
-                            width: '80px', 
-                            height: '80px', 
-                            borderRadius: '50%', 
-                            background: 'rgba(239, 68, 68, 0.1)', 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '50%',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'center',
                             margin: '0 auto 24px'
                         }}>
@@ -354,7 +357,7 @@ export default function P2PReceive() {
                         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
                             {error}
                         </p>
-                        <button 
+                        <button
                             onClick={() => navigate('/')}
                             style={{
                                 background: 'var(--accent)',
@@ -374,246 +377,246 @@ export default function P2PReceive() {
                 ) : (
                     <>
                         {['connecting', 'waiting-files'].includes(status) && (
-                    <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                        <div className="loader" style={{
-                            margin: '0 auto 24px',
-                            border: '3px solid var(--border)',
-                            borderTopColor: 'var(--accent)',
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite'
-                        }} />
-                        <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.1rem' }}>Connecting to Sender...</h4>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Leave this window open to receive files directly.</p>
-                    </div>
-                )}
+                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                                <div className="loader" style={{
+                                    margin: '0 auto 24px',
+                                    border: '3px solid var(--border)',
+                                    borderTopColor: 'var(--accent)',
+                                    width: '48px',
+                                    height: '48px',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite'
+                                }} />
+                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.1rem' }}>Connecting to Sender...</h4>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Leave this window open to receive files directly.</p>
+                            </div>
+                        )}
 
-                {status === 'connected' && (
-                    <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                        <div style={{
-                            width: '80px',
-                            height: '80px',
-                            borderRadius: '50%',
-                            background: 'var(--accent-light)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 24px'
-                        }}>
-                            <FiWifi style={{ fontSize: '40px', color: 'var(--accent)', marginBottom: '0' }} />
-                        </div>
-                        <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>Connected!</h4>
-                        <p style={{ color: 'var(--text-secondary)' }}>
-                            {availableFiles.length > 0
-                                ? `${availableFiles.length} file(s) available.`
-                                : 'Waiting for the sender to drop files.'}
-                        </p>
-                    </div>
-                )}
-
-                {/* Show Available Files List if connected and not receiving */}
-                {status === 'connected' && availableFiles.length > 0 && (
-                    <div style={{ marginTop: '32px' }}>
-                        <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', fontSize: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Available Files ({availableFiles.length})</span>
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', marginBottom: '24px' }}>
-                            {availableFiles.map((f, i) => {
-                                const isDownloaded = receivedFiles.some(rf => rf.name === f.name && rf.size === f.size);
-                                const isDownloading = downloadingFileIndex === f.index;
-                                const isQueued = downloadQueue.includes(f.index);
-
-                                return (
-                                    <div key={i} style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '16px',
-                                        backgroundColor: 'var(--bg-input)',
-                                        borderRadius: 'var(--radius-md)',
-                                        border: '1px solid var(--border)'
-                                    }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', marginRight: '16px' }}>
-                                            <span style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '600', fontSize: '0.95rem' }}>
-                                                {f.name}
-                                            </span>
-                                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
-                                                {renderSize(f.size)}
-                                            </span>
-                                        </div>
-                                        {isDownloaded ? (
-                                            <span style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <FiCheckCircle /> Saved
-                                            </span>
-                                        ) : isDownloading ? (
-                                            <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                                                Downloading...
-                                            </span>
-                                        ) : isQueued ? (
-                                            <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                Queued
-                                            </span>
-                                        ) : (
-                                            <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                Waiting...
-                                            </span>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <button
-                            onClick={downloadAll}
-                            disabled={downloadingFileIndex !== null || downloadQueue.length > 0}
-                            style={{
-                                width: '100%',
-                                background: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'var(--bg-hover)' : 'var(--accent)',
-                                color: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'var(--text-tertiary)' : 'var(--text-inverse)',
-                                border: 'none',
-                                padding: '14px',
-                                borderRadius: 'var(--radius-full)',
-                                cursor: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'not-allowed' : 'pointer',
-                                fontSize: '1rem',
-                                fontWeight: '600',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'none' : 'var(--shadow-md)',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <FiDownload /> Download All Files
-                        </button>
-                    </div>
-                )}
-
-                {status === 'receiving' && (
-                    <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                        <div style={{
-                            width: '80px',
-                            height: '80px',
-                            borderRadius: '50%',
-                            background: 'var(--accent-light)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 24px',
-                            animation: 'pulse 2s infinite'
-                        }}>
-                            <FiDownload style={{ fontSize: '40px', color: 'var(--accent)' }} />
-                        </div>
-                        <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', wordBreak: 'break-all', fontSize: '1.1rem' }}>
-                            Receiving: {currentFileTitle}
-                        </h4>
-                        <div style={{
-                            width: '100%',
-                            height: '8px',
-                            background: 'var(--bg-input)',
-                            borderRadius: '4px',
-                            overflow: 'hidden',
-                            marginTop: '24px',
-                            maxWidth: '320px',
-                            margin: '24px auto 0'
-                        }}>
-                            <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.2s' }}></div>
-                        </div>
-                        <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontWeight: '500' }}>{progress}% Transferring...</p>
-                    </div>
-                )}
-
-                {(status === 'done' || receivedFiles.length > 0) && (
-                    <div style={{ marginTop: '24px' }}>
-                        {status === 'done' || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length) ? (
-                            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                        {status === 'connected' && (
+                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
                                 <div style={{
                                     width: '80px',
                                     height: '80px',
                                     borderRadius: '50%',
-                                    background: 'rgba(16, 185, 129, 0.1)',
+                                    background: 'var(--accent-light)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     margin: '0 auto 24px'
                                 }}>
-                                    <FiCheckCircle style={{ fontSize: '40px', color: 'var(--success)', marginBottom: '0' }} />
+                                    <FiWifi style={{ fontSize: '40px', color: 'var(--accent)', marginBottom: '0' }} />
                                 </div>
-                                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>All Files Received</h4>
-                                <p style={{ color: 'var(--text-secondary)' }}>Files have been saved to your device.</p>
+                                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>Connected!</h4>
+                                <p style={{ color: 'var(--text-secondary)' }}>
+                                    {availableFiles.length > 0
+                                        ? `${availableFiles.length} file(s) available.`
+                                        : 'Waiting for the sender to drop files.'}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Show Available Files List if connected and not receiving */}
+                        {status === 'connected' && availableFiles.length > 0 && (
+                            <div style={{ marginTop: '32px' }}>
+                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', fontSize: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>Available Files ({availableFiles.length})</span>
+                                </h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', marginBottom: '24px' }}>
+                                    {availableFiles.map((f, i) => {
+                                        const isDownloaded = receivedFiles.some(rf => rf.name === f.name && rf.size === f.size);
+                                        const isDownloading = downloadingFileIndex === f.index;
+                                        const isQueued = downloadQueue.includes(f.index);
+
+                                        return (
+                                            <div key={i} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                padding: '16px',
+                                                backgroundColor: 'var(--bg-input)',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: '1px solid var(--border)'
+                                            }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', marginRight: '16px' }}>
+                                                    <span style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '600', fontSize: '0.95rem' }}>
+                                                        {f.name}
+                                                    </span>
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
+                                                        {renderSize(f.size)}
+                                                    </span>
+                                                </div>
+                                                {isDownloaded ? (
+                                                    <span style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <FiCheckCircle /> Saved
+                                                    </span>
+                                                ) : isDownloading ? (
+                                                    <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                                                        Downloading...
+                                                    </span>
+                                                ) : isQueued ? (
+                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        Queued
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        Waiting...
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
 
                                 <button
-                                    onClick={() => navigate('/')}
+                                    onClick={downloadAll}
+                                    disabled={downloadingFileIndex !== null || downloadQueue.length > 0}
                                     style={{
-                                        marginTop: '24px',
-                                        background: 'var(--accent)',
-                                        color: 'var(--text-inverse)',
+                                        width: '100%',
+                                        background: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'var(--bg-hover)' : 'var(--accent)',
+                                        color: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'var(--text-tertiary)' : 'var(--text-inverse)',
                                         border: 'none',
-                                        padding: '12px 32px',
+                                        padding: '14px',
                                         borderRadius: 'var(--radius-full)',
-                                        cursor: 'pointer',
+                                        cursor: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'not-allowed' : 'pointer',
+                                        fontSize: '1rem',
                                         fontWeight: '600',
-                                        transition: 'all 0.2s',
-                                        boxShadow: 'var(--shadow-md)'
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        boxShadow: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'none' : 'var(--shadow-md)',
+                                        transition: 'all 0.2s'
                                     }}
                                 >
-                                    Return Home
+                                    <FiDownload /> Download All Files
                                 </button>
                             </div>
-                        ) : null}
+                        )}
 
-                        {receivedFiles.length > 0 && (
-                            <>
-                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', fontSize: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-                                    Received Files ({receivedFiles.length})
+                        {status === 'receiving' && (
+                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    borderRadius: '50%',
+                                    background: 'var(--accent-light)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto 24px',
+                                    animation: 'pulse 2s infinite'
+                                }}>
+                                    <FiDownload style={{ fontSize: '40px', color: 'var(--accent)' }} />
+                                </div>
+                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', wordBreak: 'break-all', fontSize: '1.1rem' }}>
+                                    Receiving: {currentFileTitle}
                                 </h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    {receivedFiles.map((f, i) => (
-                                        <div key={i} style={{
+                                <div style={{
+                                    width: '100%',
+                                    height: '8px',
+                                    background: 'var(--bg-input)',
+                                    borderRadius: '4px',
+                                    overflow: 'hidden',
+                                    marginTop: '24px',
+                                    maxWidth: '320px',
+                                    margin: '24px auto 0'
+                                }}>
+                                    <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.2s' }}></div>
+                                </div>
+                                <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontWeight: '500' }}>{progress}% Transferring...</p>
+                            </div>
+                        )}
+
+                        {(status === 'done' || receivedFiles.length > 0) && (
+                            <div style={{ marginTop: '24px' }}>
+                                {status === 'done' || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length) ? (
+                                    <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                                        <div style={{
+                                            width: '80px',
+                                            height: '80px',
+                                            borderRadius: '50%',
+                                            background: 'rgba(16, 185, 129, 0.1)',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            padding: '16px',
-                                            backgroundColor: 'var(--bg-input)',
-                                            borderRadius: 'var(--radius-md)',
-                                            border: '1px solid var(--border)'
+                                            justifyContent: 'center',
+                                            margin: '0 auto 24px'
                                         }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', marginRight: '16px' }}>
-                                                <span style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '600', fontSize: '0.95rem' }}>
-                                                    {f.name}
-                                                </span>
-                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
-                                                    {renderSize(f.size)}
-                                                </span>
-                                            </div>
-                                            <button
-                                                onClick={() => triggerDownload(f.url, f.name)}
-                                                style={{
+                                            <FiCheckCircle style={{ fontSize: '40px', color: 'var(--success)', marginBottom: '0' }} />
+                                        </div>
+                                        <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>All Files Received</h4>
+                                        <p style={{ color: 'var(--text-secondary)' }}>Files have been saved to your device.</p>
+
+                                        <button
+                                            onClick={() => navigate('/')}
+                                            style={{
+                                                marginTop: '24px',
+                                                background: 'var(--accent)',
+                                                color: 'var(--text-inverse)',
+                                                border: 'none',
+                                                padding: '12px 32px',
+                                                borderRadius: 'var(--radius-full)',
+                                                cursor: 'pointer',
+                                                fontWeight: '600',
+                                                transition: 'all 0.2s',
+                                                boxShadow: 'var(--shadow-md)'
+                                            }}
+                                        >
+                                            Return Home
+                                        </button>
+                                    </div>
+                                ) : null}
+
+                                {receivedFiles.length > 0 && (
+                                    <>
+                                        <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', fontSize: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+                                            Received Files ({receivedFiles.length})
+                                        </h4>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            {receivedFiles.map((f, i) => (
+                                                <div key={i} style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: '6px',
-                                                    background: 'var(--accent)',
-                                                    color: 'var(--text-inverse)',
-                                                    border: 'none',
-                                                    padding: '8px 16px',
-                                                    borderRadius: '6px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.85rem',
-                                                    whiteSpace: 'nowrap',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                <FiDownload /> Download
-                                            </button>
+                                                    justifyContent: 'space-between',
+                                                    padding: '16px',
+                                                    backgroundColor: 'var(--bg-input)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: '1px solid var(--border)'
+                                                }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', marginRight: '16px' }}>
+                                                        <span style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '600', fontSize: '0.95rem' }}>
+                                                            {f.name}
+                                                        </span>
+                                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
+                                                            {renderSize(f.size)}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => triggerDownload(f.url, f.name)}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px',
+                                                            background: 'var(--accent)',
+                                                            color: 'var(--text-inverse)',
+                                                            border: 'none',
+                                                            padding: '8px 16px',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.85rem',
+                                                            whiteSpace: 'nowrap',
+                                                            fontWeight: '500'
+                                                        }}
+                                                    >
+                                                        <FiDownload /> Download
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            </>
+                                    </>
+                                )}
+                            </div>
                         )}
-                    </div>
-                )}
                     </>
                 )}
             </div>

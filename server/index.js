@@ -18,7 +18,11 @@ const PORT = process.env.PORT || 6500;
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-    cors: { origin: '*' },
+    cors: {
+        origin: ["https://datashare.satyapage.in", "http://localhost:5173", "http://localhost:3000"],
+        methods: ["GET", "POST"],
+        credentials: true
+    },
     maxHttpBufferSize: 1e8 // 100 MB max for huge signals if needed
 });
 
@@ -58,7 +62,10 @@ io.on('connection', (socket) => {
 });
 
 // Middleware
-app.use(cors({ origin: '*' }));
+app.use(cors({
+    origin: ["https://datashare.satyapage.in", "http://localhost:5173", "http://localhost:3000"],
+    credentials: true
+}));
 app.use(express.json({ limit: '1024mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1024mb' }));
 

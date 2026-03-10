@@ -27,7 +27,10 @@ export default function P2PShare() {
         const id = Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(id);
 
-        const socket = io(API_URL);
+        const socket = io(API_URL, {
+            withCredentials: true,
+            transports: ['polling', 'websocket']
+        });
         socketRef.current = socket;
 
         socket.on('connect', () => {
