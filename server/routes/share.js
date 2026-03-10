@@ -389,4 +389,27 @@ router.get('/active', async (req, res) => {
     }
 });
 
+// POST /api/share/increment — Increment global share count manually (for P2P)
+router.post('/increment', async (req, res) => {
+    try {
+        const db = req.db;
+        const { count } = req.body;
+        
+        // Default to increment by 1, but allow bulk increment if multiple files sent
+        const incVal = (count && Number.isInteger(count) && count > 0) ? count : 1;
+
+        await db.collection('app_stats').updateOne(
+            { _id: 'global' },
+            { $inc: { totalPublished: incVal } },
+            { upsert: true }
+        );
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Increment stats error:', err);
+        // Don't fail the client request if stats fail, just log it
+        res.json({ success: false, error: 'Stats update failed' });
+    }
+});
+
 module.exports = router;

@@ -10,8 +10,52 @@ const cron = require('node-cron');
 const shareRoutes = require('./routes/share');
 const secureRoutes = require('./routes/secure');
 
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
 const PORT = process.env.PORT || 6500;
+
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+    cors: { origin: '*' },
+    maxHttpBufferSize: 1e8 // 100 MB max for huge signals if needed
+});
+
+io.on('connection', (socket) => {
+    // Basic WebRTC Signaling
+    socket.on('join-room', (roomId) => {
+        socket.join(roomId);
+    });
+
+    socket.on('receiver-joined', (roomId) => {
+        socket.to(roomId).emit('receiver-joined');
+    });
+
+    socket.on('offer', (data) => {
+        socket.to(data.roomId).emit('offer', data);
+    });
+
+    socket.on('answer', (data) => {
+        socket.to(data.roomId).emit('answer', data);
+    });
+
+    socket.on('ice-candidate', (data) => {
+        socket.to(data.roomId).emit('ice-candidate', data);
+    });
+
+    socket.on('transfer-complete', (roomId) => {
+        socket.to(roomId).emit('transfer-complete');
+    });
+
+    // Verify room existence before joining
+    socket.on('check-room', (roomId, callback) => {
+        const room = io.sockets.adapter.rooms.get(roomId);
+        // Room must exist and have at least one client (the sender)
+        const exists = room && room.size > 0;
+        callback({ active: exists });
+    });
+});
 
 // Middleware
 app.use(cors({ origin: '*' }));
@@ -170,7 +214,7 @@ app.get('/api/health', (req, res) => {
 
 // Start server
 connectDB().then(() => {
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
         console.log(`🚀 DataShare server running on http://localhost:${PORT}`);
     });
 });

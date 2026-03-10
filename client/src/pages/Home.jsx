@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiFileText, FiFolder, FiShield, FiGlobe } from 'react-icons/fi';
+import { FiFileText, FiFolder, FiShield, FiGlobe, FiSmartphone, FiArrowRight } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function Home() {
@@ -35,6 +35,26 @@ export default function Home() {
             </section>
 
             <section className="features">
+                {/* P2P Share Card - Spans full width */}
+                <div className="p2p-card">
+                    <div className="p2p-card-content">
+                        <div className="p2p-icon-wrapper">
+                            <FiSmartphone className="p2p-device-icon primary" />
+                            <FiArrowRight className="p2p-transfer-arrow" />
+                            <FiSmartphone className="p2p-device-icon secondary" />
+                        </div>
+                        <div className="p2p-text-content">
+                            <h3 className="feature-title p2p-title">Peer-to-Peer Transfer</h3>
+                            <p className="feature-desc p2p-desc">
+                                Send files directly to another device. Unlimited size, no server storage.
+                            </p>
+                        </div>
+                    </div>
+                    <Link to="/p2p" className="p2p-action-btn">
+                        Start Transfer <FiArrowRight className="p2p-arrow" />
+                    </Link>
+                </div>
+
                 <Link to="/text" className="feature-card">
                     <div className="feature-card-top">
                         <div className="feature-icon">

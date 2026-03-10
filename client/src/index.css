@@ -77,6 +77,299 @@
   --glow-top: radial-gradient(circle at 50% 0%, rgba(250, 248, 241, 0.02) 0%, transparent 50%);
 }
 
+/* P2P Section */
+.p2p-section {
+  max-width: 1200px;
+  width: 100%;
+  margin: 24px auto 0;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* .file-input-label {
+  max-width: 1100px;
+  max-height: 220px;
+  width: 100%;
+} */
+
+/* P2P transfer page layout */
+.p2p-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.p2p-page-header {
+  margin-bottom: 24px;
+}
+
+.p2p-page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.p2p-page-subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* P2P share inner header */
+.p2p-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.p2p-section-title-icon {
+  padding: 8px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 1.4rem;
+}
+
+.p2p-section-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  font-size: 1rem;
+  line-height: 1.6;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 32px;
+}
+
+.p2p-upload-icon-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.p2p-upload-title {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.p2p-upload-subtitle {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .p2p-section {
+    margin: 16px auto 0;
+    padding: 16px;
+    border-radius: var(--radius-md);
+  }
+
+  .p2p-page {
+    padding: 20px 16px;
+  }
+
+  .p2p-page-title {
+    font-size: 1.5rem;
+  }
+
+  .p2p-page-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .p2p-section-title {
+    font-size: 1.25rem;
+    text-align: center;
+    flex-wrap: wrap;
+  }
+
+  .p2p-section-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+    padding: 0 8px;
+  }
+
+  .p2p-upload-title {
+    font-size: 1rem;
+  }
+
+  .p2p-upload-subtitle {
+    font-size: 0.8rem;
+  }
+}
+
+/* P2P Card on Home Page */
+.p2p-card {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40px;
+  background: linear-gradient(145deg, var(--bg-card), var(--bg-secondary));
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease;
+}
+
+/* Only add border highlight when the Start Transfer button is hovered */
+.p2p-card:has(.p2p-action-btn:hover) {
+  border-color: var(--border-focus);
+}
+
+.p2p-card-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+  min-width: 0;
+}
+
+.p2p-icon-wrapper {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 2rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.p2p-device-icon {
+  font-size: 1.7rem;
+}
+
+.p2p-transfer-arrow {
+  font-size: 1.3rem;
+  margin: 0 4px;
+  animation: p2p-transfer 1.2s ease-in-out infinite;
+}
+
+@keyframes p2p-transfer {
+  0% {
+    transform: translateX(-4px);
+    opacity: 0.4;
+  }
+
+  50% {
+    transform: translateX(4px);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(-4px);
+    opacity: 0.4;
+  }
+}
+
+.p2p-text-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.p2p-title {
+  font-size: 1.5rem;
+  margin: 0 0 6px 0;
+}
+
+.p2p-desc {
+  padding-left: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 460px;
+}
+
+.p2p-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--text-inverse);
+  padding: 12px 28px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.p2p-arrow {
+  transition: transform 0.2s;
+}
+
+.p2p-action-btn:hover .p2p-arrow {
+  transform: translateX(4px);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .features {
+    grid-template-columns: 1fr;
+  }
+
+  .p2p-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .p2p-card-content {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .p2p-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+
+  .p2p-title {
+    font-size: 1.2rem;
+    margin-bottom: 4px;
+  }
+
+  .p2p-desc {
+    font-size: 0.95rem;
+  }
+
+  .p2p-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* ============================================
    RESET & BASE
    ============================================ */
@@ -370,6 +663,12 @@ textarea {
   color: var(--text-tertiary);
   line-height: 1.4;
   padding-left: 48px;
+}
+
+/* Override feature-desc padding for P2P home card description */
+.p2p-card .p2p-desc {
+  padding-left: 0;
+  margin-left: 0;
 }
 
 /* ============================================
