@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { FiSearch, FiSun, FiMoon, FiShare2 } from 'react-icons/fi';
+import { MdOutlineQrCodeScanner } from 'react-icons/md';
 import { FaFolderOpen } from 'react-icons/fa';
 import SearchModal from './SearchModal';
+import QRScannerModal from './QRScannerModal';
 
 export default function Header() {
     const { theme, toggleTheme } = useTheme();
     const [searchOpen, setSearchOpen] = useState(false);
+    const [qrOpen, setQrOpen] = useState(false);
 
     return (
         <>
@@ -19,6 +22,15 @@ export default function Header() {
                     </Link>
 
                     <div className="header-actions">
+
+                        <button
+                            className="icon-btn"
+                            onClick={() => setQrOpen(true)}
+                            title="Scan QR Code"
+                            aria-label="Scan QR Code"
+                        >
+                            <MdOutlineQrCodeScanner />
+                        </button>
 
                         <button
                             className="icon-btn"
@@ -53,6 +65,7 @@ export default function Header() {
             </header>
 
             <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+            <QRScannerModal isOpen={qrOpen} onClose={() => setQrOpen(false)} />
         </>
     );
 }

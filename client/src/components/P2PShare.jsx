@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { FiUploadCloud, FiWifi, FiCheckCircle, FiCopy, FiFileText } from 'react-icons/fi';
+import { FiUploadCloud, FiCheckCircle, FiCopy, FiFileText, FiMonitor, FiArrowRight, FiSmartphone } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function P2PShare() {
@@ -250,8 +250,10 @@ export default function P2PShare() {
             }}
         >
             <h3 className="p2p-section-title">
-                <span className="p2p-section-title-icon">
-                    <FiWifi />
+                <span className="p2p-section-title-icon" style={{ background: 'transparent', width: 'auto' }}>
+                    <FiMonitor className="p2p-device-icon primary" />
+                    <FiArrowRight className="p2p-transfer-arrow" />
+                    <FiSmartphone className="p2p-device-icon secondary" />
                 </span>
                 Direct Peer-to-Peer Transfer
             </h3>
@@ -454,7 +456,11 @@ export default function P2PShare() {
                         justifyContent: 'center',
                         margin: '0 auto 24px'
                     }}>
-                        <FiWifi style={{ fontSize: '40px', color: 'var(--accent)', animation: 'pulse 2s infinite' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', color: 'var(--accent)', animation: 'pulse 2s infinite' }}>
+                            <FiMonitor style={{ fontSize: '32px' }} />
+                            <FiArrowRight className="p2p-transfer-arrow" style={{ fontSize: '24px' }} />
+                            <FiSmartphone style={{ fontSize: '32px' }} />
+                        </div>
                     </div>
                     <h4 style={{ color: 'var(--text-primary)', marginBottom: '8px', fontSize: '1.2rem' }}>Receiver Connected!</h4>
                     <p style={{ color: 'var(--text-secondary)' }}>Preparing to send {files.length} file(s)...</p>

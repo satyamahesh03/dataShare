@@ -98,6 +98,7 @@
 /* P2P transfer page layout */
 .p2p-page {
   max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
   padding: 32px 24px;
 }

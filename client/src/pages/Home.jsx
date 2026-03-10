@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiFileText, FiFolder, FiShield, FiGlobe, FiSmartphone, FiArrowRight } from 'react-icons/fi';
+import { FiFileText, FiFolder, FiShield, FiGlobe, FiSmartphone, FiArrowRight, FiMonitor } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function Home() {
@@ -39,7 +39,7 @@ export default function Home() {
                 <div className="p2p-card">
                     <div className="p2p-card-content">
                         <div className="p2p-icon-wrapper">
-                            <FiSmartphone className="p2p-device-icon primary" />
+                            <FiMonitor className="p2p-device-icon primary" />
                             <FiArrowRight className="p2p-transfer-arrow" />
                             <FiSmartphone className="p2p-device-icon secondary" />
                         </div>

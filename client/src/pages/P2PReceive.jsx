@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { FiDownload, FiWifi, FiCheckCircle } from 'react-icons/fi';
+import { FiDownload, FiCheckCircle, FiArrowLeft, FiMonitor, FiArrowRight, FiSmartphone, FiWifiOff } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function P2PReceive() {
@@ -321,10 +321,20 @@ export default function P2PReceive() {
                 borderRadius: 'var(--radius-lg)',
                 padding: '40px',
                 border: '1px solid var(--border)',
-                maxWidth: '560px',
+                maxWidth: '1200px',
+                width: '100%',
                 margin: '0 auto',
-                boxShadow: 'var(--shadow-lg)'
+                boxShadow: 'var(--shadow-lg)',
+                position: 'relative'
             }}>
+                <button
+                    className="back-btn"
+                    onClick={() => navigate('/')}
+                    title="Back to Home"
+                    style={{ position: 'absolute', top: '24px', left: '24px' }}
+                >
+                    <FiArrowLeft />
+                </button>
                 <h2 style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -335,9 +345,14 @@ export default function P2PReceive() {
                     fontSize: '1.5rem',
                     fontWeight: '700'
                 }}>
-                    <FiWifi style={{ color: 'var(--accent)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', color: 'var(--accent)', gap: '4px' }}>
+                        <FiMonitor className="p2p-device-icon primary" />
+                        <FiArrowRight className="p2p-transfer-arrow" />
+                        <FiSmartphone className="p2p-device-icon secondary" />
+                    </div>
                     Receive Files
                 </h2>
+
 
                 {error ? (
                     <div style={{ textAlign: 'center', padding: '32px 0' }}>
@@ -351,7 +366,7 @@ export default function P2PReceive() {
                             justifyContent: 'center',
                             margin: '0 auto 24px'
                         }}>
-                            <FiWifi style={{ fontSize: '40px', color: 'var(--danger)', marginBottom: '0' }} />
+                            <FiWifiOff style={{ fontSize: '40px', color: 'var(--danger)', marginBottom: '0' }} />
                         </div>
                         <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>Connection Failed</h4>
                         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
@@ -404,7 +419,11 @@ export default function P2PReceive() {
                                     justifyContent: 'center',
                                     margin: '0 auto 24px'
                                 }}>
-                                    <FiWifi style={{ fontSize: '40px', color: 'var(--accent)', marginBottom: '0' }} />
+                                    <div style={{ display: 'flex', alignItems: 'center', color: 'var(--accent)' }}>
+                                        <FiMonitor style={{ fontSize: '32px' }} />
+                                        <FiArrowRight className="p2p-transfer-arrow" style={{ fontSize: '24px' }} />
+                                        <FiSmartphone style={{ fontSize: '32px' }} />
+                                    </div>
                                 </div>
                                 <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>Connected!</h4>
                                 <p style={{ color: 'var(--text-secondary)' }}>
