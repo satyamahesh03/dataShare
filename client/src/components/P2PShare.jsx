@@ -384,7 +384,7 @@ export default function P2PShare() {
                         marginBottom: '32px',
                         width: '100%'
                     }}>
-                        <div style={{
+                        {/* <div style={{
                             background: 'rgba(239, 68, 68, 0.08)',
                             border: '1px solid rgba(239, 68, 68, 0.2)',
                             borderRadius: 'var(--radius-md)',
@@ -400,7 +400,7 @@ export default function P2PShare() {
                         }}>
                             <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
                             <span>Please do not switch tabs or close this window during the transfer.</span>
-                        </div>
+                        </div> */}
                         <div style={{
                             background: 'rgba(16, 185, 129, 0.08)',
                             border: '1px solid rgba(16, 185, 129, 0.2)',
@@ -721,6 +721,25 @@ export default function P2PShare() {
                         <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.3s ease-out' }}></div>
                     </div>
                     <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontWeight: '500' }}>{progress}%</p>
+
+                    <div style={{
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '12px 16px',
+                        color: 'var(--danger)',
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        textAlign: 'left',
+                        maxWidth: '500px',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        margin: '24px auto 0'
+                    }}>
+                        <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
+                        <span>Please do not switch tabs or close this window during the transfer.</span>
+                    </div>
 
                     <button
                         onClick={cancelSending}

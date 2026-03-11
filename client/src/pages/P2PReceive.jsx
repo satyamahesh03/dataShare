@@ -426,7 +426,7 @@ export default function P2PReceive() {
                                     width: '100%',
                                     marginTop: '8px'
                                 }}>
-                                    <div style={{
+                                    {/* <div style={{
                                         background: 'rgba(239, 68, 68, 0.08)',
                                         border: '1px solid rgba(239, 68, 68, 0.2)',
                                         borderRadius: 'var(--radius-md)',
@@ -442,7 +442,7 @@ export default function P2PReceive() {
                                     }}>
                                         <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
                                         <span>Please do not switch tabs or close this window during the transfer.</span>
-                                    </div>
+                                    </div> */}
                                     <div style={{
                                         background: 'rgba(16, 185, 129, 0.08)',
                                         border: '1px solid rgba(16, 185, 129, 0.2)',
@@ -554,6 +554,25 @@ export default function P2PReceive() {
                                         ? `${availableFiles.length} file(s) available.`
                                         : 'Waiting for the sender to drop files.'}
                                 </p>
+
+                                <div style={{
+                                    background: 'rgba(239, 68, 68, 0.08)',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    borderRadius: 'var(--radius-md)',
+                                    padding: '12px 16px',
+                                    color: 'var(--danger)',
+                                    fontSize: '0.9rem',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    textAlign: 'left',
+                                    maxWidth: '500px',
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    margin: '24px auto 0'
+                                }}>
+                                    <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
+                                    <span>Please do not switch tabs or close this window during the transfer.</span>
+                                </div>
                             </div>
                         )}
 
@@ -667,6 +686,25 @@ export default function P2PReceive() {
                                     <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.2s' }}></div>
                                 </div>
                                 <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontWeight: '500' }}>{progress}% Transferring...</p>
+
+                                <div style={{
+                                    background: 'rgba(239, 68, 68, 0.08)',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    borderRadius: 'var(--radius-md)',
+                                    padding: '12px 16px',
+                                    color: 'var(--danger)',
+                                    fontSize: '0.9rem',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    textAlign: 'left',
+                                    maxWidth: '500px',
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    margin: '24px auto 0'
+                                }}>
+                                    <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
+                                    <span>Please do not switch tabs or close this window during the transfer.</span>
+                                </div>
                             </div>
                         )}
 
