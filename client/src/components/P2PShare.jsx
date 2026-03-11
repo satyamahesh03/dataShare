@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { FiUploadCloud, FiCheckCircle, FiCopy, FiFileText, FiMonitor, FiArrowRight, FiSmartphone } from 'react-icons/fi';
+import { FiUploadCloud, FiCheckCircle, FiCopy, FiFileText, FiMonitor, FiArrowRight, FiSmartphone, FiLock, FiUnlock } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function P2PShare() {
@@ -11,16 +11,24 @@ export default function P2PShare() {
     const [progress, setProgress] = useState(0);
     const [copied, setCopied] = useState(false);
 
+    // Security PIN
+    const [pin, setPin] = useState('');
+
     const socketRef = useRef(null);
     const peerRef = useRef(null);
     const channelRef = useRef(null);
     const filesRef = useRef(files);
+    const pinRef = useRef(pin);
     const ackResolverRef = useRef(null);
 
-    // Keep filesRef in sync with files state
+    // Keep filesRef and pinRef in sync with state
     useEffect(() => {
         filesRef.current = files;
     }, [files]);
+
+    useEffect(() => {
+        pinRef.current = pin;
+    }, [pin]);
 
     useEffect(() => {
         // Generate a random 6-character room ID
@@ -108,12 +116,19 @@ export default function P2PShare() {
         };
 
         const channel = pc.createDataChannel('fileTransfer');
+        // Set low threshold to 1MB to prevent pipe from emptying
+        channel.bufferedAmountLowThreshold = 1048576;
         channelRef.current = channel;
 
         channel.onopen = () => {
             console.log('Data channel opened!');
             if (filesRef.current.length > 0) {
-                sendManifest(filesRef.current);
+                if (pinRef.current) {
+                    setStatus('locked');
+                    channel.send(JSON.stringify({ type: 'require-pin' }));
+                } else {
+                    sendManifest(filesRef.current);
+                }
             }
         };
         channel.onmessage = (event) => {
@@ -122,6 +137,13 @@ export default function P2PShare() {
                 if (data.type === 'request-file') {
                     // Receiver requested a file
                     sendFile(data.index);
+                } else if (data.type === 'verify-pin') {
+                    if (data.pin === pinRef.current) {
+                        channel.send(JSON.stringify({ type: 'pin-correct' }));
+                        sendManifest(filesRef.current);
+                    } else {
+                        channel.send(JSON.stringify({ type: 'pin-incorrect' }));
+                    }
                 }
             } catch (e) {
                 // Ignore binary data or non-json
@@ -135,7 +157,95 @@ export default function P2PShare() {
 
     const handleFileSelect = (e) => {
         if (e.target.files.length > 0) {
-            setFiles(Array.from(e.target.files));
+            setFiles(prev => [...prev, ...Array.from(e.target.files)]);
+        }
+    };
+
+    const handleDrop = async (e) => {
+        e.preventDefault();
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.backgroundColor = 'var(--bg-input)';
+
+        const items = e.dataTransfer.items;
+        if (!items) {
+            if (e.dataTransfer.files.length > 0) {
+                setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
+            }
+            return;
+        }
+
+        const readDirEntries = async (dirReader) => {
+            return new Promise((resolve) => {
+                dirReader.readEntries(async (entries) => {
+                    resolve(entries);
+                });
+            });
+        };
+
+        const scanFiles = async (item) => {
+            if (item.isFile) {
+                return new Promise((resolve) => {
+                    item.file((file) => {
+                        // Some systems require path to identify duplicates or folders, 
+                        // setting a custom property on the file object
+                        resolve([file]);
+                    });
+                });
+            } else if (item.isDirectory) {
+                const dirReader = item.createReader();
+                let allEntries = [];
+                let entries = await readDirEntries(dirReader);
+
+                // readEntries may not return all files at once, must loop until empty
+                while (entries.length > 0) {
+                    allEntries = allEntries.concat(entries);
+                    entries = await readDirEntries(dirReader);
+                }
+
+                let innerFiles = [];
+                for (let entry of allEntries) {
+                    const result = await scanFiles(entry);
+                    innerFiles = innerFiles.concat(result);
+                }
+                return innerFiles;
+            }
+            return [];
+        };
+
+        // Extract entries synchronously because e.dataTransfer becomes invalid after first await
+        let entries = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].kind === 'file') {
+                const entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : (items[i].getAsEntry ? items[i].getAsEntry() : null);
+                if (entry) {
+                    entries.push({ type: 'entry', data: entry });
+                } else {
+                    entries.push({ type: 'file', data: items[i].getAsFile() });
+                }
+            }
+        }
+
+        let allFiles = [];
+        for (let item of entries) {
+            if (item.type === 'entry') {
+                const scanned = await scanFiles(item.data);
+                allFiles = allFiles.concat(scanned);
+            } else if (item.type === 'file' && item.data) {
+                allFiles.push(item.data);
+            }
+        }
+
+        if (allFiles.length > 0) {
+            setFiles(prev => [...prev, ...allFiles]);
+        }
+    };
+
+    const togglePin = () => {
+        if (pin) {
+            setPin('');
+        } else {
+            // Generate 4-digit PIN
+            setPin(Math.floor(1000 + Math.random() * 9000).toString());
         }
     };
 
@@ -172,7 +282,8 @@ export default function P2PShare() {
             fileType: file.type
         }));
 
-        const chunkSize = 16384;
+        // 64KB chunks are optimal for WebRTC over WAN
+        const chunkSize = 65536;
         let offset = 0;
         let bytesSent = 0;
 
@@ -186,7 +297,8 @@ export default function P2PShare() {
         };
 
         while (offset < file.size) {
-            if (channel.bufferedAmount > channel.bufferedAmountLowThreshold) {
+            // Buffer up to 4MB before pausing loop
+            if (channel.bufferedAmount > 4194304) {
                 await new Promise(resolve => {
                     channel.onbufferedamountlow = () => {
                         channel.onbufferedamountlow = null;
@@ -264,6 +376,49 @@ export default function P2PShare() {
                         Send files directly to another device without uploading to any server.<br />
                         <span style={{ color: 'var(--accent)', fontWeight: '500' }}>Fast, private, and unlimited.</span>
                     </p>
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        alignItems: 'center',
+                        marginBottom: '32px',
+                        width: '100%'
+                    }}>
+                        <div style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '12px 16px',
+                            color: 'var(--danger)',
+                            fontSize: '0.9rem',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            textAlign: 'left',
+                            maxWidth: '500px',
+                            width: '100%',
+                            boxSizing: 'border-box'
+                        }}>
+                            <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
+                            <span>Please do not switch tabs or close this window during the transfer.</span>
+                        </div>
+                        <div style={{
+                            background: 'rgba(16, 185, 129, 0.08)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '12px 16px',
+                            color: 'var(--success)',
+                            fontSize: '0.9rem',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            textAlign: 'left',
+                            maxWidth: '500px',
+                            width: '100%',
+                            boxSizing: 'border-box'
+                        }}>
+                            <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Pro Tip:</span>
+                            <span>For ultra-fast, zero-data transfers, connect both devices to the same WiFi network.</span>
+                        </div>
+                    </div>
 
                     <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center' }}>
                         {files.length === 0 && (
@@ -284,6 +439,21 @@ export default function P2PShare() {
                                     position: 'relative',
                                     overflow: 'hidden'
                                 }}
+                                    onDrop={handleDrop}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.currentTarget.style.borderColor = 'var(--accent)';
+                                        e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                                    }}
+                                    onDragLeave={(e) => {
+                                        e.preventDefault();
+                                        e.currentTarget.style.borderColor = 'var(--border)';
+                                        e.currentTarget.style.backgroundColor = 'var(--bg-input)';
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = 'none';
+                                    }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.borderColor = 'var(--accent)';
                                         e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
@@ -332,6 +502,27 @@ export default function P2PShare() {
                                 overflow: 'hidden',
                                 animation: 'fadeIn 0.5s ease'
                             }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px', width: '100%' }}>
+                                    <button
+                                        onClick={togglePin}
+                                        style={{
+                                            background: pin ? 'var(--danger)' : 'transparent',
+                                            border: pin ? 'none' : '1px solid var(--border)',
+                                            color: pin ? 'var(--text-inverse)' : 'var(--text-secondary)',
+                                            padding: '8px 20px',
+                                            borderRadius: 'var(--radius-full)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem',
+                                            fontWeight: '600',
+                                            transition: 'all 0.2s',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
+                                    >
+                                        {pin ? <><FiLock /> PIN: {pin}</> : <><FiUnlock /> Secure with PIN (Optional)</>}
+                                    </button>
+                                </div>
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                                     <div style={{
                                         background: '#fff',
@@ -342,8 +533,11 @@ export default function P2PShare() {
                                     }}>
                                         <QRCodeSVG value={shareUrl} size={140} />
                                     </div>
-                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: '500', marginBottom: '8px' }}>
+                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: '500', marginBottom: '4px' }}>
                                         Scan to Receive
+                                    </p>
+                                    <p style={{ fontSize: '0.95rem', color: 'var(--accent)', fontWeight: '600' }}>
+                                        {files.length} file{files.length !== 1 && 's'} ready to send
                                     </p>
                                 </div>
 
@@ -464,6 +658,39 @@ export default function P2PShare() {
                     </div>
                     <h4 style={{ color: 'var(--text-primary)', marginBottom: '8px', fontSize: '1.2rem' }}>Receiver Connected!</h4>
                     <p style={{ color: 'var(--text-secondary)' }}>Preparing to send {files.length} file(s)...</p>
+                </div>
+            )}
+
+            {status === 'locked' && (
+                <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                    <div style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '50%',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 24px',
+                        border: '1px solid rgba(239, 68, 68, 0.2)'
+                    }}>
+                        <FiLock style={{ fontSize: '32px', color: 'var(--danger)' }} />
+                    </div>
+                    <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.2rem' }}>Awaiting PIN Verification</h4>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Share this exact PIN with the receiver:</p>
+                    <div style={{
+                        display: 'inline-block',
+                        background: 'var(--bg-input)',
+                        padding: '16px 32px',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '2px dashed var(--border)',
+                        color: 'var(--text-primary)',
+                        fontSize: '3rem',
+                        fontWeight: '700',
+                        letterSpacing: '12px'
+                    }}>
+                        {pin}
+                    </div>
                 </div>
             )}
 

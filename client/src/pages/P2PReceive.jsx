@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { FiDownload, FiCheckCircle, FiArrowLeft, FiMonitor, FiArrowRight, FiSmartphone, FiWifiOff } from 'react-icons/fi';
+import { FiDownload, FiCheckCircle, FiArrowLeft, FiMonitor, FiArrowRight, FiSmartphone, FiWifiOff, FiLock, FiUnlock } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function P2PReceive() {
@@ -15,6 +15,7 @@ export default function P2PReceive() {
     const [downloadingFileIndex, setDownloadingFileIndex] = useState(null);
     const [downloadQueue, setDownloadQueue] = useState([]);
     const [error, setError] = useState(null);
+    const [pinInput, setPinInput] = useState('');
 
     const socketRef = useRef(null);
     const peerRef = useRef(null);
@@ -138,7 +139,14 @@ export default function P2PReceive() {
             try {
                 const message = JSON.parse(data);
 
-                if (message.type === 'batch-offer') {
+                if (message.type === 'require-pin') {
+                    setStatus('locked');
+                } else if (message.type === 'pin-incorrect') {
+                    setError('Incorrect PIN. Please try again.');
+                } else if (message.type === 'pin-correct') {
+                    setError(null);
+                    setStatus('waiting-files');
+                } else if (message.type === 'batch-offer') {
                     setAvailableFiles(message.files);
                     setStatus('connected');
                 } else if (message.type === 'file-start') {
@@ -306,6 +314,12 @@ export default function P2PReceive() {
         document.body.removeChild(a);
     };
 
+    const submitPin = () => {
+        if (channelRef.current && pinInput.length === 4) {
+            channelRef.current.send(JSON.stringify({ type: 'verify-pin', pin: pinInput }));
+        }
+    };
+
     const renderSize = (bytes) => {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -403,7 +417,116 @@ export default function P2PReceive() {
                                     animation: 'spin 1s linear infinite'
                                 }} />
                                 <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.1rem' }}>Connecting to Sender...</h4>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Leave this window open to receive files directly.</p>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '16px' }}>Leave this window open to receive files directly.</p>
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '12px',
+                                    alignItems: 'center',
+                                    width: '100%',
+                                    marginTop: '8px'
+                                }}>
+                                    <div style={{
+                                        background: 'rgba(239, 68, 68, 0.08)',
+                                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '12px 16px',
+                                        color: 'var(--danger)',
+                                        fontSize: '0.9rem',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        textAlign: 'left',
+                                        maxWidth: '500px',
+                                        width: '100%',
+                                        boxSizing: 'border-box'
+                                    }}>
+                                        <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
+                                        <span>Please do not switch tabs or close this window during the transfer.</span>
+                                    </div>
+                                    <div style={{
+                                        background: 'rgba(16, 185, 129, 0.08)',
+                                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '12px 16px',
+                                        color: 'var(--success)',
+                                        fontSize: '0.9rem',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        textAlign: 'left',
+                                        maxWidth: '500px',
+                                        width: '100%',
+                                        boxSizing: 'border-box'
+                                    }}>
+                                        <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Pro Tip:</span>
+                                        <span>For ultra-fast, zero-data transfers, connect both devices to the same WiFi network.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {status === 'locked' && (
+                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    borderRadius: '50%',
+                                    background: 'var(--bg-input)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto 24px',
+                                    border: '1px solid var(--border)'
+                                }}>
+                                    <FiLock style={{ fontSize: '32px', color: 'var(--text-primary)' }} />
+                                </div>
+                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.2rem' }}>Enter PIN Code</h4>
+                                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>The sender has secured this transfer with a PIN.</p>
+
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    submitPin();
+                                }} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                                    <input
+                                        type="text"
+                                        maxLength={4}
+                                        value={pinInput}
+                                        onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="0000"
+                                        style={{
+                                            textAlign: 'center',
+                                            fontSize: '1.5rem',
+                                            letterSpacing: '8px',
+                                            padding: '12px',
+                                            width: '120px',
+                                            borderRadius: 'var(--radius-md)',
+                                            border: '1px solid var(--border)',
+                                            background: 'var(--bg-input)',
+                                            color: 'var(--text-primary)'
+                                        }}
+                                        autoFocus
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={pinInput.length !== 4}
+                                        style={{
+                                            background: 'var(--accent)',
+                                            color: 'var(--text-inverse)',
+                                            border: 'none',
+                                            padding: '10px 24px',
+                                            borderRadius: 'var(--radius-full)',
+                                            cursor: pinInput.length === 4 ? 'pointer' : 'not-allowed',
+                                            fontWeight: '600',
+                                            opacity: pinInput.length === 4 ? 1 : 0.5,
+                                            transition: 'all 0.2s',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            boxShadow: pinInput.length === 4 ? 'var(--shadow-md)' : 'none'
+                                        }}
+                                    >
+                                        <FiUnlock /> Unlock Transfer
+                                    </button>
+                                </form>
                             </div>
                         )}
 
