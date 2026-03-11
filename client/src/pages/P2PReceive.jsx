@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { FiDownload, FiCheckCircle, FiArrowLeft, FiMonitor, FiArrowRight, FiSmartphone, FiWifiOff, FiLock, FiUnlock } from 'react-icons/fi';
+import { FiDownload, FiCheckCircle, FiArrowLeft, FiMonitor, FiArrowRight, FiSmartphone, FiWifiOff, FiLock, FiUnlock, FiClock } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function P2PReceive() {
@@ -329,8 +329,8 @@ export default function P2PReceive() {
     };
 
     return (
-        <main className="container wrapper" style={{ marginTop: '30px', padding: '0 20px' }}>
-            <div style={{
+        <main className="container wrapper p2p-receive-main" style={{ marginTop: '30px', padding: '0 20px' }}>
+            <div className="p2p-receive-card" style={{
                 backgroundColor: 'var(--bg-card)',
                 borderRadius: 'var(--radius-lg)',
                 padding: '40px',
@@ -342,14 +342,14 @@ export default function P2PReceive() {
                 position: 'relative'
             }}>
                 <button
-                    className="back-btn"
+                    className="back-btn p2p-back-btn"
                     onClick={() => navigate('/')}
                     title="Back to Home"
                     style={{ position: 'absolute', top: '24px', left: '24px' }}
                 >
                     <FiArrowLeft />
                 </button>
-                <h2 style={{
+                <h2 className="p2p-receive-title" style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -482,11 +482,12 @@ export default function P2PReceive() {
                                 <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.2rem' }}>Enter PIN Code</h4>
                                 <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>The sender has secured this transfer with a PIN.</p>
 
-                                <form onSubmit={(e) => {
+                                <form className="p2p-pin-input-group" onSubmit={(e) => {
                                     e.preventDefault();
                                     submitPin();
                                 }} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                                     <input
+                                        className="p2p-pin-input"
                                         type="text"
                                         maxLength={4}
                                         value={pinInput}
@@ -532,22 +533,6 @@ export default function P2PReceive() {
 
                         {status === 'connected' && (
                             <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                                <div style={{
-                                    width: '80px',
-                                    height: '80px',
-                                    borderRadius: '50%',
-                                    background: 'var(--accent-light)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    margin: '0 auto 24px'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', color: 'var(--accent)' }}>
-                                        <FiMonitor style={{ fontSize: '32px' }} />
-                                        <FiArrowRight className="p2p-transfer-arrow" style={{ fontSize: '24px' }} />
-                                        <FiSmartphone style={{ fontSize: '32px' }} />
-                                    </div>
-                                </div>
                                 <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>Connected!</h4>
                                 <p style={{ color: 'var(--text-secondary)' }}>
                                     {availableFiles.length > 0
@@ -589,7 +574,7 @@ export default function P2PReceive() {
                                         const isQueued = downloadQueue.includes(f.index);
 
                                         return (
-                                            <div key={i} style={{
+                                            <div key={i} className="p2p-file-item" style={{
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'space-between',
@@ -607,21 +592,21 @@ export default function P2PReceive() {
                                                     </span>
                                                 </div>
                                                 {isDownloaded ? (
-                                                    <span style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                                                         <FiCheckCircle /> Saved
                                                     </span>
                                                 ) : isDownloading ? (
-                                                    <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                                                         <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                                                         Downloading...
                                                     </span>
                                                 ) : isQueued ? (
-                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        Queued
+                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                        <FiClock /> Queued
                                                     </span>
                                                 ) : (
-                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        Waiting...
+                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                        <FiClock /> Waiting...
                                                     </span>
                                                 )}
                                             </div>
@@ -754,7 +739,7 @@ export default function P2PReceive() {
                                         </h4>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                             {receivedFiles.map((f, i) => (
-                                                <div key={i} style={{
+                                                <div key={i} className="p2p-file-item" style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'space-between',
@@ -806,6 +791,15 @@ export default function P2PReceive() {
                 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
                 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
                 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .7; transform: scale(1.05); } }
+                
+                @media (max-width: 768px) {
+                    .p2p-receive-main { padding: 0 12px !important; margin-top: 16px !important; }
+                    .p2p-receive-card { padding: 24px 16px !important; }
+                    .p2p-back-btn { top: 16px !important; left: 16px !important; }
+                    .p2p-receive-title { font-size: 1.25rem !important; margin-bottom: 24px !important; margin-top: 16px !important; flex-direction: column; text-align: center; }
+                    .p2p-pin-input-group { width: 100%; }
+                    .p2p-pin-input { width: 100% !important; max-width: 200px; box-sizing: border-box; }
+                }
             `}} />
         </main >
     );
