@@ -174,7 +174,9 @@ export default function ShareResult({ shareData, onClose }) {
                         </>
                     ) : (
                         <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem' }}>
-                            <span style={{ color: '#9ca3af', fontSize: '0.9rem' }}>{window.location.origin}/share/</span>
+                            <span style={{ color: '#9ca3af', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                                <span className="url-prefix-domain">{window.location.host}</span>/share/
+                            </span>
                             <input
                                 type="text"
                                 value={customSlug}
