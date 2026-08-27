@@ -12,7 +12,7 @@ export default function LoginModal() {
     if (!showLogin) return null;
 
     return (
-        <div className="publish-modal-overlay" onClick={() => setShowLogin(false)}>
+        <div className="publish-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowLogin(false)}>
             <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="publish-modal-close" onClick={() => setShowLogin(false)}>
                     <FiX />

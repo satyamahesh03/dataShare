@@ -84,7 +84,7 @@ export default function PremiumModal() {
     };
 
     return (
-        <div className="publish-modal-overlay" onClick={() => !paying && setShowPremium(false)}>
+        <div className="publish-modal-overlay" style={{ zIndex: 9999 }} onClick={() => !paying && setShowPremium(false)}>
             <div className="auth-modal premium-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="publish-modal-close" onClick={() => setShowPremium(false)}>
                     <FiX />

@@ -10,8 +10,8 @@ import { API_URL, authHeaders } from '../config';
 export default function ShareResult({ shareData, onClose }) {
     const { addToast } = useToast();
     const navigate = useNavigate();
-    const { isPremium, setShowPremium } = useAuth();
-    
+    const { isPremium, setShowPremium, requirePremium } = useAuth();
+
     const [codeCopied, setCodeCopied] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
     const [displayCode, setDisplayCode] = useState(shareData.code);
@@ -92,7 +92,7 @@ export default function ShareResult({ shareData, onClose }) {
                 body: JSON.stringify({ customSlug })
             });
             const data = await res.json();
-            
+
             if (res.ok) {
                 setDisplayCode(data.customSlug);
                 setIsEditing(false);
@@ -150,9 +150,17 @@ export default function ShareResult({ shareData, onClose }) {
                         <>
                             <span className="published-url-text">{shareUrl}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                {isPremium && displayCode === shareData.code && (
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); setIsEditing(true); setCustomSlug(''); }}
+                                {displayCode === shareData.code && (
+                                    <button
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            if (isPremium) {
+                                                setIsEditing(true); 
+                                                setCustomSlug('');
+                                            } else {
+                                                setShowPremium(true);
+                                            }
+                                        }}
                                         style={{ background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                         title="Create custom link"
                                     >
@@ -174,27 +182,27 @@ export default function ShareResult({ shareData, onClose }) {
                                 placeholder="custom-link"
                                 disabled={isSaving}
                                 autoFocus
-                                style={{ 
+                                style={{
                                     flex: 1,
-                                    padding: '0.5rem', 
-                                    background: 'rgba(0,0,0,0.3)', 
-                                    border: '1px solid #fbbf24', 
-                                    color: 'white', 
+                                    padding: '0.5rem',
+                                    background: 'rgba(0,0,0,0.3)',
+                                    border: '1px solid #fbbf24',
+                                    color: 'white',
                                     borderRadius: '0.25rem',
                                     outline: 'none',
                                     fontSize: '0.9rem',
                                     minWidth: 0
                                 }}
                             />
-                            <button 
-                                onClick={handleSaveSlug} 
+                            <button
+                                onClick={handleSaveSlug}
                                 disabled={isSaving}
                                 style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '0.25rem' }}
                             >
                                 {isSaving ? '...' : <FiCheck size={20} />}
                             </button>
-                            <button 
-                                onClick={() => setIsEditing(false)} 
+                            <button
+                                onClick={() => setIsEditing(false)}
                                 disabled={isSaving}
                                 style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.25rem' }}
                             >
