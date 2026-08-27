@@ -6,7 +6,7 @@ import ShareResult from '../components/ShareResult';
 import PublishModal from '../components/PublishModal';
 import BlockEditor from '../components/BlockEditor';
 import { FiArrowLeft } from 'react-icons/fi';
-import { API_URL } from '../config';
+import { API_URL, authHeaders } from '../config';
 
 export default function TextShare() {
     const [text, setText] = useState('');
@@ -28,17 +28,18 @@ export default function TextShare() {
         setShowPublishModal(true);
     };
 
-    const handlePublish = async ({ expiryMinutes, password }) => {
+    const handlePublish = async ({ expiryMinutes, password, burstShare }) => {
         setLoading(true);
         try {
             const res = await fetch(`${API_URL}/api/share/create`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     type: 'text',
                     textContent: text,
                     expiryMinutes,
                     password,
+                    burstShare,
                 }),
             });
 
@@ -49,7 +50,11 @@ export default function TextShare() {
                 setShowPublishModal(false);
                 addToast('Text shared successfully!', 'success');
             } else {
-                addToast(data.error || 'Failed to create share', 'error');
+                if (data.upgradeRequired) {
+                    addToast(data.error || 'Premium required', 'error');
+                } else {
+                    addToast(data.error || 'Failed to create share', 'error');
+                }
             }
         } catch (err) {
             addToast('Server error. Please try again.', 'error');

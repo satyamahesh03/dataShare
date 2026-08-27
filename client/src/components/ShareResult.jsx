@@ -84,7 +84,11 @@ export default function ShareResult({ shareData, onClose }) {
                         <FiCheck />
                     </div>
                     <h1 className="published-title">Published</h1>
-                    <p className="published-subtitle">Your content is ready to view!</p>
+                    <p className="published-subtitle">
+                        {shareData.burstShare
+                            ? 'Burst Share is ready — this link can be opened only once.'
+                            : 'Your content is ready to view!'}
+                    </p>
                 </div>
 
                 {/* Big Code Display */}

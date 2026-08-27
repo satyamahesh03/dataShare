@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { FiFile, FiImage, FiFileText, FiDownload, FiLock, FiClock, FiArrowLeft, FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
 import { API_URL } from '../config';
+import ViewOnceIcon from '../components/ViewOnceIcon';
+import PdfViewer from '../components/PdfViewer';
 
 export default function ViewShare() {
     const { code } = useParams();
@@ -13,6 +15,55 @@ export default function ViewShare() {
     const [passwordError, setPasswordError] = useState('');
     const [downloading, setDownloading] = useState(false);
     const [showPw, setShowPw] = useState(false);
+    const [isBurst, setIsBurst] = useState(false);
+    const [blackout, setBlackout] = useState(false);
+
+    useEffect(() => {
+        if (!shareData?.burstShare) return;
+
+        const handleKeyDown = (e) => {
+            if (
+                e.key === 'PrintScreen' || 
+                (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key))
+            ) {
+                setBlackout(true);
+            }
+        };
+
+        const handleKeyUp = (e) => {
+            if (
+                e.key === 'PrintScreen' || 
+                e.key === 'Meta' || e.key === 'Shift'
+            ) {
+                setBlackout(false);
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                setBlackout(true);
+            } else {
+                setBlackout(false);
+            }
+        };
+
+        const handleBlur = () => setBlackout(true);
+        const handleFocus = () => setBlackout(false);
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('blur', handleBlur);
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('blur', handleBlur);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [shareData?.burstShare]);
 
     useEffect(() => {
         lookupShare();
@@ -25,12 +76,15 @@ export default function ViewShare() {
 
             if (!res.ok) {
                 setStatus('error');
-                setError(data.error || 'Share not found');
+                setError(data.error || (res.status === 410 ? 'This one-time share has already been opened' : 'Share not found'));
                 return;
             }
 
+            setIsBurst(!!data.burstShare);
             if (data.hasPassword) {
                 setStatus('password');
+            } else if (data.burstShare) {
+                setStatus('burst');
             } else {
                 await accessShare();
             }
@@ -131,6 +185,9 @@ export default function ViewShare() {
     };
 
     const isImage = (type) => type?.startsWith('image/');
+    const isVideo = (type) => type?.startsWith('video/');
+    const isAudio = (type) => type?.startsWith('audio/');
+    const isPdf = (type) => type === 'application/pdf';
 
     const renderFormattedContent = (text) => {
         if (!text) return null;
@@ -209,13 +266,38 @@ export default function ViewShare() {
         return (
             <div className="error-page">
                 <div className="error-icon"><FiAlertTriangle /></div>
-                <h2 className="error-title">Share Not Found</h2>
+                <h2 className="error-title">{error?.toLowerCase().includes('opened') ? 'Already Opened' : 'Share Not Found'}</h2>
                 <p className="error-desc">
                     {error || 'This share does not exist or has expired.'}
                 </p>
                 <Link to="/" className="home-link">
                     <FiArrowLeft /> Go Home
                 </Link>
+            </div>
+        );
+    }
+
+    // Burst / view-once gate
+    if (status === 'burst') {
+        return (
+            <div className="password-gate">
+                <div className="password-gate-card">
+                    <div className="password-gate-icon burst-gate-icon">
+                        <ViewOnceIcon size={32} />
+                    </div>
+                    <h2 className="password-gate-title">View once</h2>
+                    <p className="password-gate-desc">
+                        This Burst Share can be opened only one time. After you view it, the link will no longer work.
+                    </p>
+                    <button
+                        type="button"
+                        className="publish-btn"
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        onClick={() => accessShare()}
+                    >
+                        Open once
+                    </button>
+                </div>
             </div>
         );
     }
@@ -230,7 +312,9 @@ export default function ViewShare() {
                     </div>
                     <h2 className="password-gate-title">Password Protected</h2>
                     <p className="password-gate-desc">
-                        This share is password protected. Enter the password to view the content.
+                        {isBurst
+                            ? 'This Burst Share is password protected and can be opened only once.'
+                            : 'This share is password protected. Enter the password to view the content.'}
                     </p>
                     <form onSubmit={handlePasswordSubmit}>
                         <div className="pw-input-wrap pw-gate-wrap">
@@ -261,6 +345,13 @@ export default function ViewShare() {
     // Content View
     return (
         <div className="view-page">
+            {blackout && shareData?.burstShare && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'black', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexDirection: 'column' }}>
+                    <FiLock size={48} style={{ marginBottom: '16px' }} />
+                    <h2>Screenshots Disabled</h2>
+                    <p>This is a secure Burst Share.</p>
+                </div>
+            )}
             <div className="view-card">
                 <div className="view-card-header">
                     <div className="view-card-title">
@@ -270,8 +361,13 @@ export default function ViewShare() {
                     <div className="view-card-meta">
                         <span>
                             <FiClock style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                            Expires {formatDistanceToNow(new Date(shareData.expiresAt), { addSuffix: true })}
+                            {shareData.burstShare ? 'Disappears after this view' : `Expires ${formatDistanceToNow(new Date(shareData.expiresAt), { addSuffix: true })}`}
                         </span>
+                        {shareData.burstShare && (
+                            <span className="burst-view-badge">
+                                <ViewOnceIcon size={14} /> View once
+                            </span>
+                        )}
                         {shareData.type === 'file' && (
                             <span>
                                 {(shareData.files || []).length} file{(shareData.files || []).length !== 1 ? 's' : ''}
@@ -281,7 +377,11 @@ export default function ViewShare() {
                     </div>
                 </div>
 
-                <div className="view-card-body">
+                <div 
+                    className="view-card-body"
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{ userSelect: shareData?.burstShare ? 'none' : 'auto' }}
+                >
                     {shareData.type === 'text' ? (
                         <div className="view-text-content">
                             {renderFormattedContent(shareData.textContent)}
@@ -296,6 +396,27 @@ export default function ViewShare() {
                                             alt={file.fileName}
                                             className="view-image-preview"
                                         />
+                                    ) : isVideo(file.fileType) ? (
+                                        <video
+                                            src={file.fileUrl}
+                                            controls
+                                            controlsList="nodownload"
+                                            className="view-video-preview"
+                                            style={{ width: '100%', maxHeight: '400px', borderRadius: '8px', backgroundColor: '#000', marginBottom: '12px' }}
+                                        />
+                                    ) : isAudio(file.fileType) ? (
+                                        <div className="view-audio-container" style={{ padding: '16px', background: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '12px' }}>
+                                            <div style={{ marginBottom: '12px', fontWeight: 500, fontSize: '14px', color: 'var(--text-secondary)' }}>{file.fileName}</div>
+                                            <audio
+                                                src={file.fileUrl}
+                                                controls
+                                                controlsList="nodownload"
+                                                className="view-audio-preview"
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                    ) : isPdf(file.fileType) ? (
+                                        <PdfViewer fileUrl={file.fileUrl} burstShare={shareData.burstShare} />
                                     ) : (
                                         <div className="view-file-row">
                                             <div className="view-file-icon-sm">
@@ -307,13 +428,15 @@ export default function ViewShare() {
                                             </div>
                                         </div>
                                     )}
-                                    <button
-                                        className="download-btn"
-                                        onClick={() => handleDownload(file.fileUrl, file.fileName, file.filePublicId)}
-                                        disabled={downloading}
-                                    >
-                                        <FiDownload /> {downloading ? 'Downloading...' : `Download${(shareData.files || []).length > 1 ? '' : ' File'}`}
-                                    </button>
+                                    {!shareData.burstShare && (
+                                        <button
+                                            className="download-btn"
+                                            onClick={() => handleDownload(file.fileUrl, file.fileName, file.filePublicId)}
+                                            disabled={downloading}
+                                        >
+                                            <FiDownload /> {downloading ? 'Downloading...' : `Download${(shareData.files || []).length > 1 ? '' : ' File'}`}
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>

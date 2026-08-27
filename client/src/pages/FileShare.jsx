@@ -5,8 +5,8 @@ import { useToast } from '../context/ToastContext';
 import { savePublishedPost } from '../utils/publishedPosts';
 import ShareResult from '../components/ShareResult';
 import PublishModal from '../components/PublishModal';
-import { API_URL } from '../config';
-const MAX_TOTAL_SIZE = 1024 * 1024 * 1024;
+import { API_URL, authHeaders, FREE_MAX_BYTES, PREMIUM_MAX_BYTES } from '../config';
+import { useAuth } from '../context/AuthContext';
 const MAX_FILES = 5;
 
 export default function FileShare() {
@@ -21,6 +21,9 @@ export default function FileShare() {
     const progressTimerRef = useRef(null);
     const { addToast } = useToast();
     const navigate = useNavigate();
+    const { isPremium, setShowPremium } = useAuth();
+    const maxTotalSize = isPremium ? PREMIUM_MAX_BYTES : FREE_MAX_BYTES;
+    const limitLabel = isPremium ? '1GB' : '50MB';
 
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
@@ -35,8 +38,9 @@ export default function FileShare() {
                 addToast(`Maximum ${MAX_FILES} files allowed`, 'error');
                 break;
             }
-            if (addedTotal + f.size > MAX_TOTAL_SIZE) {
-                addToast(`Adding "${f.name}" would exceed 1GB limit`, 'error');
+            if (addedTotal + f.size > maxTotalSize) {
+                addToast(`Adding "${f.name}" would exceed the ${limitLabel} limit`, 'error');
+                if (!isPremium) setShowPremium(true);
                 break;
             }
             // Avoid duplicates by name+size
@@ -99,7 +103,7 @@ export default function FileShare() {
         setShowPublishModal(true);
     };
 
-    const handlePublish = async ({ expiryMinutes, password }) => {
+    const handlePublish = async ({ expiryMinutes, password, burstShare }) => {
         setLoading(true);
         setUploadProgress(0);
 
@@ -113,12 +117,13 @@ export default function FileShare() {
 
             const urlRes = await fetch(`${API_URL}/api/share/upload-url`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ files: fileInfo })
             });
 
             if (!urlRes.ok) {
                 const errData = await urlRes.json().catch(() => ({}));
+                if (errData.upgradeRequired) setShowPremium(true);
                 throw new Error(errData.error || 'Failed to get upload URLs');
             }
             const { uploadUrls } = await urlRes.json();
@@ -173,12 +178,13 @@ export default function FileShare() {
 
             const createRes = await fetch(`${API_URL}/api/share/create`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     type: 'file',
                     files: uploadedFilesArr,
                     expiryMinutes,
-                    password
+                    password,
+                    burstShare,
                 })
             });
 
@@ -191,6 +197,7 @@ export default function FileShare() {
                 setShowPublishModal(false);
                 addToast(`${files.length} file(s) shared successfully!`, 'success');
             } else {
+                if (data.upgradeRequired) setShowPremium(true);
                 throw new Error(data.error || 'Failed to finish creating share');
             }
 
@@ -259,7 +266,7 @@ export default function FileShare() {
                         </div>
                         <p className="upload-title">Upload files</p>
                         <p className="upload-desc">Drag and drop your files here or click to upload</p>
-                        <p className="upload-limit">Up to 5 files · Maximum total size: 1GB</p>
+                        <p className="upload-limit">Up to 5 files · Maximum total size: {limitLabel}{!isPremium ? ' · Sign in for Premium 1GB' : ''}</p>
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -272,7 +279,7 @@ export default function FileShare() {
                     <div className="files-list-area">
                         <div className="files-list-header">
                             <span className="files-list-count">
-                                {files.length} file{files.length !== 1 ? 's' : ''} · {formatSize(totalSize)} / 1 GB
+                                {files.length} file{files.length !== 1 ? 's' : ''} · {formatSize(totalSize)} / {isPremium ? '1 GB' : '50 MB'}
                             </span>
                             {files.length < MAX_FILES && (
                                 <button
@@ -315,7 +322,7 @@ export default function FileShare() {
                 <div className="files-size-bar">
                     <div
                         className="files-size-fill"
-                        style={{ width: `${Math.min((totalSize / MAX_TOTAL_SIZE) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((totalSize / maxTotalSize) * 100, 100)}%` }}
                     />
                 </div>
             )}
@@ -350,7 +357,7 @@ export default function FileShare() {
                         src="/Rocket/index.html"
                         style={{ border: 'none', background: 'transparent' }}
                         title="Upload Animation"
-                        allowTransparency={true}
+                        allowtransparency="true"
                     />
                 </div>
             )}

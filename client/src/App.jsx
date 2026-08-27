@@ -13,15 +13,21 @@ import P2PReceive from './pages/P2PReceive';
 import P2PSharePage from './pages/P2PSharePage';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
+import { AuthProvider } from './context/AuthContext';
+import LoginModal from './components/LoginModal';
+import PremiumModal from './components/PremiumModal';
 import './index.css';
 
 function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
+        <AuthProvider>
         <Router>
           <Header />
           <InstallPWA />
+          <LoginModal />
+          <PremiumModal />
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/text" element={<TextShare />} />
@@ -37,6 +43,7 @@ function App() {
           </Routes>
           <Footer />
         </Router>
+        </AuthProvider>
       </ToastProvider>
     </ThemeProvider>
   );

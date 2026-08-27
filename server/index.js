@@ -9,6 +9,8 @@ const cloudinary = require('cloudinary').v2;
 const cron = require('node-cron');
 const shareRoutes = require('./routes/share');
 const secureRoutes = require('./routes/secure');
+const authRoutes = require('./routes/auth');
+const paymentRoutes = require('./routes/payment');
 
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -102,11 +104,15 @@ async function connectDB() {
             // Index might not exist, that's fine
         }
 
-        // Create unique index on code
         await db.collection('shares').createIndex(
             { code: 1 },
             { unique: true }
         );
+        await db.collection('shares').createIndex({ userId: 1, createdAt: -1 });
+        await db.collection('users').createIndex({ googleId: 1 }, { unique: true });
+        await db.collection('users').createIndex({ email: 1 });
+        await db.collection('payments').createIndex({ paymentId: 1 }, { unique: true, sparse: true });
+        await db.collection('secure_messages').createIndex({ userId: 1, createdAt: -1 });
 
         // Drop old code index if it exists (no longer needed)
         try {
@@ -211,6 +217,8 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/payment', paymentRoutes);
 app.use('/api/share', shareRoutes);
 app.use('/api/secure', secureRoutes);
 

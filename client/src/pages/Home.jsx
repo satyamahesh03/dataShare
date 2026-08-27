@@ -24,7 +24,7 @@ export default function Home() {
                     Share anything,<br />instantly.
                 </h1>
                 <p className="hero-subtitle">
-                    Securely share texts and files in seconds. No account required.
+                    Securely share texts and files in seconds.
                 </p>
                 {stats !== null && (
                     <div className="global-stats-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', marginTop: '16px', backgroundColor: 'var(--surface-color)', borderRadius: '24px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>
@@ -75,7 +75,7 @@ export default function Home() {
                         <h3 className="feature-title">File Sharing</h3>
                     </div>
                     <p className="feature-desc">
-                        Send files fast.
+                        Send files fast. Free up to 50MB, Premium up to 1GB.
                     </p>
                 </Link>
 

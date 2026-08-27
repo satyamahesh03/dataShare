@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { nanoid } = require('nanoid');
+const { optionalAuth, requireAuth } = require('../utils/auth');
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const SALT_LEN = 8;
 // ─── ENCRYPT ───────────────────────────────────────────────
 // Takes: { text, password }
 // Returns: { encryptedMessage: shortCode }  — a compact 8-char string
-router.post('/encrypt', async (req, res) => {
+router.post('/encrypt', optionalAuth, async (req, res) => {
     try {
         const { text, password, expiryHours = 24 } = req.body;
         if (!text || !password) {
@@ -49,7 +50,8 @@ router.post('/encrypt', async (req, res) => {
             encryptedMessage: fullEncryptedMessage,
             hashedPassword,
             expiresAt,
-            createdAt: new Date()
+            createdAt: new Date(),
+            ...(req.user ? { userId: req.user._id, ownerEmail: req.user.email } : {}),
         });
 
         // Increment global stats counter
@@ -131,6 +133,32 @@ router.post('/decrypt', async (req, res) => {
     } catch (error) {
         console.error('Decrypt Error:', error);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/mine', requireAuth, async (req, res) => {
+    try {
+        const now = new Date();
+        const messages = await req.db.collection('secure_messages')
+            .find(
+                { userId: req.user._id, expiresAt: { $gt: now } },
+                { projection: { encryptedMessage: 0, hashedPassword: 0 } }
+            )
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        res.json({
+            messages: messages.map((m) => ({
+                code: m.code,
+                type: 'secure',
+                createdAt: m.createdAt,
+                expiresAt: m.expiresAt,
+                hasPassword: true,
+            })),
+        });
+    } catch (err) {
+        console.error('Mine secure error:', err);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

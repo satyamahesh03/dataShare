@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock, FiUnlock, FiCopy, FiCheck, FiShield, FiLink, FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi';
-import { API_URL } from '../config';
+import { API_URL, authHeaders } from '../config';
 import { savePublishedPost } from '../utils/publishedPosts';
 
 const EXPIRY_OPTIONS = [
@@ -81,7 +81,7 @@ export default function SecureText() {
         try {
             const res = await fetch(`${API_URL}/api/secure/encrypt`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ text, password, expiryHours: expiry }),
             });
 

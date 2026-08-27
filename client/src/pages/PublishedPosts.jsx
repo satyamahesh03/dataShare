@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { FiFileText, FiFile, FiClock, FiLock, FiArrowLeft, FiRefreshCw, FiShield, FiCopy, FiCheck } from 'react-icons/fi';
 import { getPublishedPosts, removePublishedPost } from '../utils/publishedPosts';
-import { API_URL } from '../config';
+import { API_URL, authHeaders } from '../config';
+import { useAuth } from '../context/AuthContext';
+import ViewOnceIcon from '../components/ViewOnceIcon';
 
 export default function PublishedPosts() {
+    const { user } = useAuth();
     const [shares, setShares] = useState([]);
     const [loading, setLoading] = useState(true);
     const [copiedId, setCopiedId] = useState(null);
@@ -20,10 +23,31 @@ export default function PublishedPosts() {
 
     useEffect(() => {
         fetchPosts();
-    }, []);
+    }, [user?.id]);
 
     const fetchPosts = async () => {
         setLoading(true);
+
+        if (user) {
+            try {
+                const [shareRes, secureRes] = await Promise.all([
+                    fetch(`${API_URL}/api/share/mine`, { headers: authHeaders() }),
+                    fetch(`${API_URL}/api/secure/mine`, { headers: authHeaders() }),
+                ]);
+                const shareData = shareRes.ok ? await shareRes.json() : { shares: [] };
+                const secureData = secureRes.ok ? await secureRes.json() : { messages: [] };
+                const results = [
+                    ...(shareData.shares || []),
+                    ...(secureData.messages || []),
+                ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setShares(results);
+            } catch {
+                setShares([]);
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
 
         // Get codes from localStorage (auto-cleans expired)
         const storedPosts = getPublishedPosts();
@@ -111,9 +135,12 @@ export default function PublishedPosts() {
                     {shares.map((share) => (
                         <Link
                             key={share.code}
-                            to={share.type === 'secure' ? '/secure/decrypt' : `/share/${share.code}`}
+                            to={share.burstShare && share.opened ? '#' : (share.type === 'secure' ? '/secure/decrypt' : `/share/${share.code}`)}
                             state={share.type === 'secure' ? { message: share.code } : undefined}
-                            className="post-card"
+                            className={`post-card${share.burstShare && share.opened ? ' post-card-opened' : ''}`}
+                            onClick={(e) => {
+                                if (share.burstShare && share.opened) e.preventDefault();
+                            }}
                         >
                             <div className="post-card-header">
                                 <div className="post-card-type">
@@ -121,6 +148,11 @@ export default function PublishedPosts() {
                                     <span>{share.type === 'text' ? 'Text' : share.type === 'secure' ? 'Secure' : 'File'}</span>
                                 </div>
                                 <div className="post-card-badges">
+                                    {share.burstShare && (
+                                        <span className="post-card-badge post-card-badge-burst" title={share.opened ? 'Opened once' : 'View once'}>
+                                            <ViewOnceIcon size={14} />
+                                        </span>
+                                    )}
                                     {share.hasPassword && (
                                         <span className="post-card-badge post-card-badge-lock">
                                             <FiLock />

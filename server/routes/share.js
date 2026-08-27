@@ -4,6 +4,7 @@ const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/clien
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const bcrypt = require('bcryptjs');
 const { nanoid } = require('nanoid');
+const { optionalAuth, requireAuth, isPremium, getMaxUploadBytes } = require('../utils/auth');
 
 const s3Client = new S3Client({
     region: process.env.AWS_REGION,
@@ -20,11 +21,22 @@ function generateCode() {
 }
 
 // POST /api/share/upload-url — Generate presigned upload URLs for S3
-router.post('/upload-url', async (req, res) => {
+router.post('/upload-url', optionalAuth, async (req, res) => {
     try {
         const { files } = req.body;
         if (!files || !Array.isArray(files) || files.length === 0) {
             return res.status(400).json({ error: 'Files array is required' });
+        }
+
+        const totalSize = files.reduce((sum, f) => sum + (Number(f.fileSize) || 0), 0);
+        const maxBytes = getMaxUploadBytes(req.user);
+        if (totalSize > maxBytes) {
+            const limitLabel = isPremium(req.user) ? '1GB' : '50MB';
+            return res.status(403).json({
+                error: `File size exceeds the ${limitLabel} limit`,
+                maxBytes,
+                upgradeRequired: !isPremium(req.user),
+            });
         }
 
         const uploadUrls = [];
@@ -56,16 +68,17 @@ router.post('/upload-url', async (req, res) => {
 });
 
 // POST /api/share/create — Create a new share
-router.post('/create', async (req, res) => {
+router.post('/create', optionalAuth, async (req, res) => {
     try {
-        const { type, textContent, files: filesArray, fileName, fileData, fileType, fileSize, expiryMinutes, password } = req.body;
+        const { type, textContent, files: filesArray, fileName, fileData, fileType, fileSize, expiryMinutes, password, burstShare } = req.body;
 
         if (!type || !expiryMinutes) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Validate expiry (1 min to 1440 min = 24 hrs)
-        const expiry = Math.min(Math.max(parseInt(expiryMinutes), 1), 1440);
+        // Validate expiry (1 min to 1440 min = 24 hrs, or 43200 min = 30 days for premium)
+        const maxExpiry = isPremium(req.user) ? 43200 : 1440;
+        const expiry = Math.min(Math.max(parseInt(expiryMinutes), 1), maxExpiry);
 
         // Generate unique code
         let code;
@@ -95,7 +108,24 @@ router.post('/create', async (req, res) => {
             expiresAt,
             expiryMinutes: expiry,
             hasPassword: false,
+            burstShare: false,
+            opened: false,
         };
+
+        if (req.user) {
+            shareDoc.userId = req.user._id;
+            shareDoc.ownerEmail = req.user.email;
+        }
+
+        if (burstShare) {
+            if (!isPremium(req.user)) {
+                return res.status(403).json({
+                    error: 'Burst share is a Premium feature',
+                    upgradeRequired: true,
+                });
+            }
+            shareDoc.burstShare = true;
+        }
 
         // Hash password if provided
         if (password && password.trim()) {
@@ -122,6 +152,17 @@ router.post('/create', async (req, res) => {
 
             if (filesToUpload.length === 0) {
                 return res.status(400).json({ error: 'At least one file is required' });
+            }
+
+            const totalSize = filesToUpload.reduce((sum, f) => sum + (Number(f.fileSize) || 0), 0);
+            const maxBytes = getMaxUploadBytes(req.user);
+            if (totalSize > maxBytes) {
+                const limitLabel = isPremium(req.user) ? '1GB' : '50MB';
+                return res.status(403).json({
+                    error: `File size exceeds the ${limitLabel} limit`,
+                    maxBytes,
+                    upgradeRequired: !isPremium(req.user),
+                });
             }
 
             const uploadedFiles = [];
@@ -202,6 +243,7 @@ router.post('/create', async (req, res) => {
             expiryMinutes: shareDoc.expiryMinutes,
             type: shareDoc.type,
             hasPassword: shareDoc.hasPassword,
+            burstShare: !!shareDoc.burstShare,
         });
     } catch (err) {
         console.error('Create share error:', err);
@@ -225,12 +267,17 @@ router.get('/lookup/:code', async (req, res) => {
             return res.status(404).json({ error: 'Share has expired' });
         }
 
+        if (share.burstShare && share.opened) {
+            return res.status(410).json({ error: 'This one-time share has already been opened' });
+        }
+
         res.json({
             exists: true,
             type: share.type,
             hasPassword: share.hasPassword,
             expiresAt: share.expiresAt,
             createdAt: share.createdAt,
+            burstShare: !!share.burstShare,
         });
     } catch (err) {
         console.error('Lookup error:', err);
@@ -316,6 +363,10 @@ router.post('/access/:code', async (req, res) => {
             return res.status(404).json({ error: 'Share has expired' });
         }
 
+        if (share.burstShare && share.opened) {
+            return res.status(410).json({ error: 'This one-time share has already been opened' });
+        }
+
         // Check password if required
         if (share.hasPassword) {
             if (!password) {
@@ -334,26 +385,93 @@ router.post('/access/:code', async (req, res) => {
             createdAt: share.createdAt,
             expiresAt: share.expiresAt,
             expiryMinutes: share.expiryMinutes,
+            burstShare: !!share.burstShare,
         };
 
         if (share.type === 'text') {
             response.textContent = share.textContent;
         } else if (share.type === 'file') {
-            response.fileUrl = share.fileUrl;
-            response.fileName = share.fileName;
-            response.fileType = share.fileType;
-            response.fileSize = share.fileSize;
-            response.files = share.files || [{
+            const filesArray = share.files || [{
                 fileUrl: share.fileUrl,
+                filePublicId: share.filePublicId,
                 fileName: share.fileName,
                 fileType: share.fileType,
                 fileSize: share.fileSize,
             }];
+
+            // Generate presigned URLs for viewing to avoid AccessDenied if bucket is private
+            const resolvedFiles = await Promise.all(filesArray.map(async (file) => {
+                if (file.filePublicId) {
+                    try {
+                        const command = new GetObjectCommand({
+                            Bucket: process.env.AWS_S3_BUCKET_NAME,
+                            Key: file.filePublicId,
+                        });
+                        file.fileUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+                    } catch (e) {
+                        console.error('Error generating presigned view URL:', e);
+                    }
+                }
+                return file;
+            }));
+
+            response.fileUrl = resolvedFiles[0]?.fileUrl;
+            response.fileName = share.fileName;
+            response.fileType = share.fileType;
+            response.fileSize = share.fileSize;
+            response.files = resolvedFiles;
+        }
+
+        if (share.burstShare) {
+            const claimed = await db.collection('shares').findOneAndUpdate(
+                { _id: share._id, opened: { $ne: true } },
+                { $set: { opened: true, openedAt: new Date() } }
+            );
+            if (!claimed) {
+                return res.status(410).json({ error: 'This one-time share has already been opened' });
+            }
         }
 
         res.json(response);
     } catch (err) {
         console.error('Access error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// GET /api/share/mine — Logged-in user's shares (synced across devices)
+router.get('/mine', requireAuth, async (req, res) => {
+    try {
+        const now = new Date();
+        const shares = await req.db.collection('shares')
+            .find(
+                { userId: req.user._id, expiresAt: { $gt: now } },
+                {
+                    projection: {
+                        password: 0,
+                        fileData: 0,
+                        filePublicId: 0,
+                    }
+                }
+            )
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        res.json({
+            shares: shares.map((share) => ({
+                code: share.code,
+                type: share.type,
+                createdAt: share.createdAt,
+                expiresAt: share.expiresAt,
+                hasPassword: share.hasPassword,
+                burstShare: !!share.burstShare,
+                opened: !!share.opened,
+                fileName: share.fileName,
+                fileSize: share.fileSize,
+            })),
+        });
+    } catch (err) {
+        console.error('Mine shares error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -389,7 +507,7 @@ router.post('/increment', async (req, res) => {
     try {
         const db = req.db;
         const { count } = req.body;
-        
+
         // Default to increment by 1, but allow bulk increment if multiple files sent
         const incVal = (count && Number.isInteger(count) && count > 0) ? count : 1;
 

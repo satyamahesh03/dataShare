@@ -45,6 +45,20 @@
   --glow-top: radial-gradient(circle at 50% 0%, rgba(92, 88, 85, 0.03) 0%, transparent 50%);
 }
 
+/* Premium Light Theme Override */
+:root[data-theme="light"][data-premium="true"] {
+  --bg-primary: #FDFBF5;
+  --bg-secondary: #F7EFCF;
+  --bg-card: rgba(253, 251, 245, 0.7);
+  --bg-input: rgba(247, 239, 207, 0.6);
+  --bg-hover: rgba(242, 230, 185, 0.8);
+  --border: rgba(225, 204, 133, 0.6);
+  --border-light: rgba(235, 219, 168, 0.5);
+  --accent: #B08B21;
+  --accent-soft: #F2E6B8;
+  --shadow-glow: 0 0 60px rgba(201, 162, 39, 0.15);
+}
+
 /* Dark Mode */
 [data-theme="dark"] {
   --bg-primary: #000000;
@@ -479,6 +493,27 @@ textarea {
 .logo-dot,
 .logo-highlight {
   color: var(--accent);
+}
+
+.premium-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #DFB941, #C9A227);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
+}
+
+.premium-nav-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(201, 162, 39, 0.4);
 }
 
 .header-actions {
@@ -3564,6 +3599,10 @@ textarea {
     font-size: 1.4rem;
   }
 
+  .header-actions {
+    gap: 8px;
+  }
+
   .logo-icon {
     font-size: 1.6rem;
   }
@@ -3981,7 +4020,7 @@ textarea {
   }
 
   .logo-text {
-    font-size: 1.25rem;
+    display: none;
   }
 
   .logo-icon {
@@ -4399,4 +4438,267 @@ textarea {
 .pwa-pill-btn {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+
+/* ============================================
+   AUTH / PREMIUM
+   ============================================ */
+.signin-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--text-inverse);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 4px;
+  transition: opacity 0.2s;
+}
+.signin-btn:hover {
+  opacity: 0.88;
+}
+
+.user-menu {
+  position: relative;
+  margin-left: 4px;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  padding: 0;
+}
+
+.user-avatar-wrap {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.user-avatar,
+.user-avatar-fallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.premium-crown {
+  position: absolute;
+  right: -4px;
+  top: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #F6E27A 0%, #C9A227 100%);
+  color: #6B4E00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  box-shadow: 0 1px 4px rgba(201, 162, 39, 0.5);
+  border: 1.5px solid #fff;
+}
+
+.premium-crown-inline {
+  color: #C9A227;
+  font-size: 0.85rem;
+  filter: drop-shadow(0 1px 1px rgba(201, 162, 39, 0.35));
+}
+
+.user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  z-index: 120;
+}
+
+.user-dropdown-name {
+  font-weight: 650;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.user-dropdown-email {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+
+.user-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  background: transparent;
+  text-align: left;
+}
+.user-dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
+.auth-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 32px 28px 28px;
+  max-width: 420px;
+  width: 100%;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.3s ease;
+}
+
+.auth-modal-crown {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, #F6E27A 0%, #C9A227 100%);
+  color: #6B4E00;
+  font-size: 1.25rem;
+  box-shadow: 0 6px 16px rgba(201, 162, 39, 0.35);
+}
+
+.auth-benefits,
+.premium-features {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.premium-features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.premium-features li svg {
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.premium-feature-burst {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.google-login-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.premium-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0 16px;
+}
+
+.premium-price-amount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.premium-price-period {
+  color: var(--text-secondary);
+}
+
+.premium-pay-btn {
+  width: 100%;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #E6C34A 0%, #C9A227 100%);
+  color: #3F2F00;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: opacity 0.2s;
+}
+.premium-pay-btn:disabled {
+  opacity: 0.7;
+}
+
+.burst-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.burst-gate-icon {
+  color: var(--text-primary);
+}
+
+.burst-view-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+}
+
+.post-card-badge-burst {
+  background: rgba(201, 162, 39, 0.15);
+  color: #C9A227;
+}
+
+.post-card-opened {
+  opacity: 0.62;
+  cursor: default;
+}
+
+/* Mobile responsive adjustments for ViewShare */
+@media (max-width: 768px) {
+  .view-page {
+    padding: 16px 12px;
+  }
+  .view-card-header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .view-card-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .view-card-body {
+    padding: 16px;
+  }
+  .view-h1 {
+    font-size: 1.4rem;
+  }
+  .view-h2 {
+    font-size: 1.2rem;
+  }
+  .view-h3 {
+    font-size: 1.1rem;
+  }
 }

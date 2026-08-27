@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { FiClock, FiLock, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FaCrown } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import ViewOnceIcon from './ViewOnceIcon';
 
 const EXPIRY_OPTIONS = [
     { value: 15, label: '15 min' },
@@ -9,13 +12,17 @@ const EXPIRY_OPTIONS = [
     { value: 360, label: '6 hrs' },
     { value: 720, label: '12 hrs' },
     { value: 1440, label: '1 day' },
+    { value: 'custom', label: 'Custom' },
 ];
 
 export default function PublishModal({ isOpen, onClose, onPublish, loading, uploadProgress = 0, uploadText }) {
     const [selectedExpiry, setSelectedExpiry] = useState(2); // default 1 hr
+    const [customDate, setCustomDate] = useState('');
     const [passwordEnabled, setPasswordEnabled] = useState(false);
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [burstShare, setBurstShare] = useState(false);
+    const { isPremium, requirePremium } = useAuth();
 
     // Slider logic
     const expiryBarRef = useRef(null);
@@ -38,17 +45,32 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
     // Re-run slider when modal opens or layout changes
     useEffect(() => {
         if (isOpen) {
-            // Slight delay to ensure DOM has rendered before measuring
+            if (!isPremium) setBurstShare(false);
             setTimeout(updateSlider, 50);
         }
-    }, [isOpen, selectedExpiry, updateSlider]);
+    }, [isOpen, selectedExpiry, updateSlider, isPremium]);
 
     const currentExpiry = EXPIRY_OPTIONS[selectedExpiry];
 
     const handlePublish = () => {
+        let expiryMinutes = currentExpiry.value;
+        if (expiryMinutes === 'custom') {
+            if (!customDate) {
+                alert('Please select a custom expiration date and time.');
+                return;
+            }
+            const diffMs = new Date(customDate).getTime() - Date.now();
+            if (diffMs <= 0) {
+                alert('Custom expiration must be in the future.');
+                return;
+            }
+            expiryMinutes = Math.ceil(diffMs / 60000); // convert ms to minutes
+        }
+        
         onPublish({
-            expiryMinutes: currentExpiry.value,
+            expiryMinutes,
             password: passwordEnabled && password ? password : undefined,
+            burstShare: isPremium && burstShare,
         });
     };
 
@@ -85,16 +107,71 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
                                 height: sliderStyle.height,
                             }}
                         />
-                        {EXPIRY_OPTIONS.map((opt, i) => (
-                            <button
-                                key={opt.value}
-                                className={`expiry-pill${i === selectedExpiry ? ' active' : ''}`}
-                                onClick={() => setSelectedExpiry(i)}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
+                        {EXPIRY_OPTIONS.map((opt, i) => {
+                            if (opt.value === 'custom' && !isPremium) {
+                                return (
+                                    <button
+                                        key={opt.value}
+                                        className="expiry-pill"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            requirePremium();
+                                        }}
+                                        title="Premium Feature"
+                                    >
+                                        <FaCrown style={{ color: '#C9A227', marginRight: '4px' }} />
+                                        Custom
+                                    </button>
+                                );
+                            }
+                            return (
+                                <button
+                                    key={opt.value}
+                                    className={`expiry-pill${i === selectedExpiry ? ' active' : ''}`}
+                                    onClick={() => setSelectedExpiry(i)}
+                                >
+                                    {opt.label}
+                                </button>
+                            );
+                        })}
                     </div>
+                    {currentExpiry.value === 'custom' && (
+                        <div className="custom-expiry-picker" style={{ marginTop: '16px' }}>
+                            <input 
+                                type="datetime-local" 
+                                className="publish-password-input" 
+                                value={customDate}
+                                onChange={(e) => setCustomDate(e.target.value)}
+                                style={{ width: '100%', boxSizing: 'border-box' }}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Burst Share */}
+                <div className="publish-option-card">
+                    <div className="publish-option-top" style={{ marginBottom: burstShare && isPremium ? 8 : 0 }}>
+                        <span className="publish-option-label">
+                            <ViewOnceIcon /> Burst share
+                            <span className="premium-crown-inline" title="Premium">
+                                <FaCrown />
+                            </span>
+                        </span>
+                        <button
+                            className={`publish-toggle${burstShare && isPremium ? ' active' : ''}`}
+                            onClick={() => {
+                                if (requirePremium()) {
+                                    setBurstShare(!burstShare);
+                                }
+                            }}
+                            type="button"
+                        >
+                            <span className="publish-toggle-knob" />
+                        </button>
+                    </div>
+                    {burstShare && isPremium && (
+                        <p className="burst-hint">The link can be opened only once, then it disappears.</p>
+                    )}
                 </div>
 
                 {/* Password */}
