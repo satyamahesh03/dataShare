@@ -214,6 +214,13 @@ app.use((req, res, next) => {
 app.use('/api/share', shareRoutes);
 app.use('/api/secure', secureRoutes);
 
+// P2P Room Check
+app.get('/api/p2p/check/:roomId', (req, res) => {
+    const room = io.sockets.adapter.rooms.get(req.params.roomId);
+    const exists = room && room.size > 0;
+    res.json({ active: exists });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

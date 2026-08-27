@@ -243,13 +243,15 @@ export default function FileShare() {
                 </button>
             </div>
 
-            <div className={`content-area ${files.length > 0 ? 'active' : ''}`}>
+            <div 
+                className={`content-area ${files.length > 0 ? 'active' : ''} ${dragging ? 'dragging-global' : ''}`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+            >
                 {files.length === 0 ? (
                     <div
                         className={`file-upload-zone ${dragging ? 'dragging' : ''}`}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
                         onClick={() => fileInputRef.current?.click()}
                     >
                         <div className="upload-icon-wrapper">

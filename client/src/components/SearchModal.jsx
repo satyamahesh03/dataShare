@@ -4,7 +4,7 @@ import { FiX } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function SearchModal({ isOpen, onClose }) {
-    const [chars, setChars] = useState(['', '', '', '', '', '']);
+    const [chars, setChars] = useState(['', '', '', '', '']);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const inputRefs = useRef([]);
@@ -13,28 +13,29 @@ export default function SearchModal({ isOpen, onClose }) {
 
     useEffect(() => {
         if (isOpen) {
-            setChars(['', '', '', '', '', '']);
+            setChars(['', '', '', '', '']);
             setError('');
             setTimeout(() => inputRefs.current[0]?.focus(), 100);
         }
     }, [isOpen]);
 
     const handleChange = (index, value) => {
-        const char = value.toUpperCase().slice(-1);
+        // Only accept numbers
+        const char = value.replace(/[^0-9]/g, '').slice(-1);
         const newChars = [...chars];
         newChars[index] = char;
         setChars(newChars);
         setError('');
 
         // Auto-focus next input
-        if (char && index < 5) {
+        if (char && index < 4) {
             inputRefs.current[index + 1]?.focus();
         }
 
-        // Auto-submit when all 6 chars are filled
-        if (char && index === 5) {
+        // Auto-submit when all 5 chars are filled
+        if (char && index === 4) {
             const code = newChars.join('');
-            if (code.length === 6) {
+            if (code.length === 5) {
                 submitCode(code);
             }
         }
@@ -56,16 +57,16 @@ export default function SearchModal({ isOpen, onClose }) {
 
     const handlePaste = (e) => {
         e.preventDefault();
-        const pasted = e.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-        const newChars = ['', '', '', '', '', ''];
+        const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 5);
+        const newChars = ['', '', '', '', ''];
         for (let i = 0; i < pasted.length; i++) {
             newChars[i] = pasted[i];
         }
         setChars(newChars);
-        if (pasted.length === 6) {
+        if (pasted.length === 5) {
             submitCode(pasted);
         } else {
-            inputRefs.current[Math.min(pasted.length, 5)]?.focus();
+            inputRefs.current[Math.min(pasted.length, 4)]?.focus();
         }
     };
 
@@ -77,10 +78,22 @@ export default function SearchModal({ isOpen, onClose }) {
             if (res.ok) {
                 onClose();
                 navigate(`/share/${code}`);
-            } else {
-                const data = await res.json();
-                setError(data.error || 'Share not found or has expired');
+                return;
             }
+            
+            // Check P2P room if normal share fails
+            const p2pRes = await fetch(`${API_URL}/api/p2p/check/${code}`);
+            if (p2pRes.ok) {
+                const p2pData = await p2pRes.json();
+                if (p2pData.active) {
+                    onClose();
+                    navigate(`/p2p/${code}`);
+                    return;
+                }
+            }
+
+            // Both failed
+            setError('Share not found or has expired');
         } catch {
             setError('Failed to connect to server');
         } finally {
@@ -104,7 +117,7 @@ export default function SearchModal({ isOpen, onClose }) {
 
                 <div className="search-code-boxes">
                     {chars.map((char, i) => (
-                        <span key={i}>
+                        <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <input
                                 ref={el => inputRefs.current[i] = el}
                                 type="text"
@@ -117,7 +130,6 @@ export default function SearchModal({ isOpen, onClose }) {
                                 autoComplete="off"
                                 disabled={loading}
                             />
-                            {i === 2 && <span className="search-code-dot">·</span>}
                         </span>
                     ))}
                 </div>

@@ -31,8 +31,8 @@ export default function P2PShare() {
     }, [pin]);
 
     useEffect(() => {
-        // Generate a random 6-character room ID
-        const id = Math.random().toString(36).substring(2, 8).toUpperCase();
+        // Generate a random 5-digit room ID
+        const id = Math.floor(10000 + Math.random() * 90000).toString();
         setRoomId(id);
 
         const socket = io(API_URL, {

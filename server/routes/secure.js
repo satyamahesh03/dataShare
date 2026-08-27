@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const { nanoid } = require('nanoid');
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ const SALT_LEN = 8;
 
 // ─── ENCRYPT ───────────────────────────────────────────────
 // Takes: { text, password }
-// Returns: { encryptedMessage }  — a compact base64 string
+// Returns: { encryptedMessage: shortCode }  — a compact 8-char string
 router.post('/encrypt', async (req, res) => {
     try {
         const { text, password, expiryHours = 24 } = req.body;
@@ -29,7 +30,7 @@ router.post('/encrypt', async (req, res) => {
 
         // Combine salt(8) + iv(16) + ciphertext into one buffer, then base64url encode
         const combined = Buffer.concat([salt, iv, encrypted]);
-        const encryptedMessage = combined.toString('base64url');
+        const fullEncryptedMessage = combined.toString('base64url');
 
         // Also store in MongoDB (encrypted + hashed password)
         const db = req.db;
@@ -39,9 +40,13 @@ router.post('/encrypt', async (req, res) => {
 
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + parseInt(expiryHours));
+        
+        // Generate a short code for the user to copy instead of the massive payload
+        const code = nanoid(8);
 
         await collection.insertOne({
-            encryptedMessage,
+            code,
+            encryptedMessage: fullEncryptedMessage,
             hashedPassword,
             expiresAt,
             createdAt: new Date()
@@ -54,7 +59,8 @@ router.post('/encrypt', async (req, res) => {
             { upsert: true }
         );
 
-        res.json({ encryptedMessage });
+        // Return the short code as 'encryptedMessage' so frontend works without changes
+        res.json({ encryptedMessage: code });
 
     } catch (error) {
         console.error('Encrypt Error:', error);
@@ -63,20 +69,32 @@ router.post('/encrypt', async (req, res) => {
 });
 
 // ─── DECRYPT ───────────────────────────────────────────────
-// Takes: { encryptedMessage, password }
-// Supports both new (base64url, CTR) and old (hex:hex:hex, CBC) formats
+// Takes: { encryptedMessage: code, password }
 router.post('/decrypt', async (req, res) => {
     try {
         const { encryptedMessage, password } = req.body;
         if (!encryptedMessage || !password) {
-            return res.status(400).json({ error: 'Encrypted message and password are required' });
+            return res.status(400).json({ error: 'Encrypted message code and password are required' });
+        }
+
+        const db = req.db;
+        const collection = db.collection('secure_messages');
+        let actualEncryptedMessage = encryptedMessage.trim();
+
+        // If the user pasted a short code (length <= 20), look it up in the DB
+        if (actualEncryptedMessage.length <= 20) {
+            const doc = await collection.findOne({ code: actualEncryptedMessage });
+            if (!doc) {
+                return res.status(404).json({ error: 'Message not found or has expired' });
+            }
+            actualEncryptedMessage = doc.encryptedMessage;
         }
 
         let salt, iv, encryptedData, alg;
 
-        if (encryptedMessage.includes(':')) {
+        if (actualEncryptedMessage.includes(':')) {
             // Old format: salt(16):iv(16):ciphertext (all hex, CBC)
-            const parts = encryptedMessage.trim().split(':');
+            const parts = actualEncryptedMessage.trim().split(':');
             if (parts.length !== 3) {
                 return res.status(400).json({ error: 'Invalid encrypted message format' });
             }
@@ -86,7 +104,7 @@ router.post('/decrypt', async (req, res) => {
             alg = 'aes-256-cbc';
         } else {
             // New format: base64url(salt(8) + iv(16) + ciphertext), CTR
-            const combined = Buffer.from(encryptedMessage.trim(), 'base64url');
+            const combined = Buffer.from(actualEncryptedMessage.trim(), 'base64url');
             if (combined.length < 25) {
                 return res.status(400).json({ error: 'Invalid encrypted message' });
             }

@@ -14,14 +14,9 @@ const s3Client = new S3Client({
 });
 const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
 
-// Generate a unique 6-char code (no ambiguous chars)
+// Generate a unique 5-digit code
 function generateCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return code;
+    return Math.floor(10000 + Math.random() * 90000).toString();
 }
 
 // POST /api/share/upload-url — Generate presigned upload URLs for S3
