@@ -7,6 +7,7 @@ import ShareResult from '../components/ShareResult';
 import PublishModal from '../components/PublishModal';
 import { API_URL, authHeaders, FREE_MAX_BYTES, PREMIUM_MAX_BYTES } from '../config';
 import { useAuth } from '../context/AuthContext';
+import { pendingDroppedFiles, clearPendingDroppedFiles } from '../components/GlobalDragDrop';
 const MAX_FILES = 5;
 
 export default function FileShare() {
@@ -27,33 +28,45 @@ export default function FileShare() {
 
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
-    const addFiles = (newFiles) => {
+    const addFiles = useCallback((newFiles) => {
         const fileList = Array.from(newFiles);
-        const currentTotal = files.reduce((sum, f) => sum + f.size, 0);
-        let addedTotal = currentTotal;
-        const validFiles = [];
+        let currentTotal = 0;
+        setFiles(prev => {
+            currentTotal = prev.reduce((sum, f) => sum + f.size, 0);
+            let addedTotal = currentTotal;
+            const validFiles = [];
 
-        for (const f of fileList) {
-            if (files.length + validFiles.length >= MAX_FILES) {
-                addToast(`Maximum ${MAX_FILES} files allowed`, 'error');
-                break;
+            for (const f of fileList) {
+                if (prev.length + validFiles.length >= MAX_FILES) {
+                    addToast(`Maximum ${MAX_FILES} files allowed`, 'error');
+                    break;
+                }
+                if (addedTotal + f.size > maxTotalSize) {
+                    addToast(`Adding "${f.name}" would exceed the ${limitLabel} limit`, 'error');
+                    if (!isPremium) setShowPremium(true);
+                    break;
+                }
+                if (!prev.some(existing => existing.name === f.name && existing.size === f.size)) {
+                    validFiles.push(f);
+                    addedTotal += f.size;
+                }
             }
-            if (addedTotal + f.size > maxTotalSize) {
-                addToast(`Adding "${f.name}" would exceed the ${limitLabel} limit`, 'error');
-                if (!isPremium) setShowPremium(true);
-                break;
-            }
-            // Avoid duplicates by name+size
-            if (!files.some(existing => existing.name === f.name && existing.size === f.size)) {
-                validFiles.push(f);
-                addedTotal += f.size;
-            }
-        }
 
-        if (validFiles.length > 0) {
-            setFiles(prev => [...prev, ...validFiles]);
+            if (validFiles.length > 0) {
+                return [...prev, ...validFiles];
+            }
+            return prev;
+        });
+    }, [addToast, isPremium, limitLabel, maxTotalSize, setShowPremium]);
+
+    // Handle globally dropped files
+    useEffect(() => {
+        if (pendingDroppedFiles && pendingDroppedFiles.length > 0) {
+            addFiles(pendingDroppedFiles);
+            // clear the module-level variable
+            clearPendingDroppedFiles();
         }
-    };
+    }, [addFiles]);
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -250,7 +263,7 @@ export default function FileShare() {
                 </button>
             </div>
 
-            <div 
+            <div
                 className={`content-area ${files.length > 0 ? 'active' : ''} ${dragging ? 'dragging-global' : ''}`}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}

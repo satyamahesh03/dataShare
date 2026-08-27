@@ -65,8 +65,13 @@ export default function Header() {
                         </button>
 
                         {user && !user.isPremium && (
-                            <button className="premium-nav-btn" onClick={() => setShowPremium(true)}>
-                                <FaCrown /> Premium
+                            <button
+                                className="icon-btn"
+                                onClick={() => setShowPremium(true)}
+                                title="Upgrade to Premium"
+                                aria-label="Upgrade to Premium"
+                            >
+                                <FaCrown style={{ color: '#DFB941' }} />
                             </button>
                         )}
 

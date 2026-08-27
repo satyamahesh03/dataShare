@@ -345,6 +345,7 @@
   transform: translateX(4px);
 }
 
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .features {
@@ -398,6 +399,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -408,6 +410,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -645,7 +648,7 @@ textarea {
   margin: 0 auto;
   padding: 0 24px 100px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
@@ -2401,7 +2404,7 @@ textarea {
    ============================================ */
 .toast-container {
   position: fixed;
-  bottom: 24px;
+  top: 84px;
   right: 24px;
   z-index: 300;
   display: flex;
@@ -4454,6 +4457,7 @@ textarea {
   margin-left: 4px;
   transition: opacity 0.2s;
 }
+
 .signin-btn:hover {
   opacity: 0.88;
 }
@@ -4552,6 +4556,7 @@ textarea {
   background: transparent;
   text-align: left;
 }
+
 .user-dropdown-item:hover {
   background: var(--bg-hover);
 }
@@ -4643,6 +4648,7 @@ textarea {
   font-size: 0.95rem;
   transition: opacity 0.2s;
 }
+
 .premium-pay-btn:disabled {
   opacity: 0.7;
 }
@@ -4679,26 +4685,67 @@ textarea {
   .view-page {
     padding: 16px 12px;
   }
+
   .view-card-header {
     padding: 16px;
     flex-direction: column;
     align-items: flex-start;
   }
+
   .view-card-meta {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
+
   .view-card-body {
     padding: 16px;
   }
+
   .view-h1 {
     font-size: 1.4rem;
   }
+
   .view-h2 {
     font-size: 1.2rem;
   }
+
   .view-h3 {
     font-size: 1.1rem;
   }
+}
+
+/* ============================================
+   PAGE ANIMATIONS
+   ============================================ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  opacity: 0;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+.feature-card:hover .feature-icon svg,
+.p2p-card:hover .p2p-device-icon {
+  animation: float-icon 2s ease-in-out infinite;
+}
+
+@keyframes float-icon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }

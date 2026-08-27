@@ -256,7 +256,10 @@ router.get('/lookup/:code', async (req, res) => {
     try {
         const { code } = req.params;
         const db = req.db;
-        const share = await db.collection('shares').findOne({ code: code.trim() });
+        const searchCode = code.trim();
+        const share = await db.collection('shares').findOne({ 
+            $or: [{ code: searchCode }, { customSlug: searchCode }] 
+        });
 
         if (!share) {
             return res.status(404).json({ error: 'Share not found or has expired' });
@@ -352,7 +355,10 @@ router.post('/access/:code', async (req, res) => {
         const { code } = req.params;
         const { password } = req.body;
         const db = req.db;
-        const share = await db.collection('shares').findOne({ code: code.trim() });
+        const searchCode = code.trim();
+        const share = await db.collection('shares').findOne({ 
+            $or: [{ code: searchCode }, { customSlug: searchCode }] 
+        });
 
         if (!share) {
             return res.status(404).json({ error: 'Share not found or has expired' });
@@ -522,6 +528,55 @@ router.post('/increment', async (req, res) => {
         console.error('Increment stats error:', err);
         // Don't fail the client request if stats fail, just log it
         res.json({ success: false, error: 'Stats update failed' });
+    }
+});
+
+// PUT /api/share/:code/custom — Update custom slug for premium users
+router.put('/:code/custom', requireAuth, async (req, res) => {
+    try {
+        if (!isPremium(req.user)) {
+            return res.status(403).json({ error: 'Custom links are a Premium feature' });
+        }
+
+        const { code } = req.params;
+        const { customSlug } = req.body;
+        
+        if (!customSlug || typeof customSlug !== 'string' || customSlug.trim() === '') {
+            return res.status(400).json({ error: 'Valid custom link is required' });
+        }
+
+        const formattedSlug = customSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+        if (formattedSlug.length < 3 || formattedSlug.length > 50) {
+            return res.status(400).json({ error: 'Custom link must be between 3 and 50 characters' });
+        }
+
+        const db = req.db;
+        const collection = db.collection('shares');
+
+        // Check if the slug is already taken by a non-expired share
+        const existing = await collection.findOne({
+            $or: [{ code: formattedSlug }, { customSlug: formattedSlug }],
+            expiresAt: { $gt: new Date() }
+        });
+
+        if (existing && existing.code !== code) {
+            return res.status(409).json({ error: 'This custom link is already taken' });
+        }
+
+        const result = await collection.updateOne(
+            { code: code, userId: req.user._id },
+            { $set: { customSlug: formattedSlug } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Share not found or you do not have permission to edit it' });
+        }
+
+        res.json({ success: true, customSlug: formattedSlug, code: code });
+    } catch (err) {
+        console.error('Update custom link error:', err);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

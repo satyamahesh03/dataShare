@@ -3,15 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '../context/ToastContext';
 import { format } from 'date-fns';
-import { FiCopy, FiDownload, FiShare2, FiX, FiCheck } from 'react-icons/fi';
+import { FiCopy, FiDownload, FiShare2, FiX, FiCheck, FiEdit2, FiSave } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
+import { API_URL, authHeaders } from '../config';
 
 export default function ShareResult({ shareData, onClose }) {
     const { addToast } = useToast();
     const navigate = useNavigate();
+    const { isPremium, setShowPremium } = useAuth();
+    
     const [codeCopied, setCodeCopied] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
+    const [displayCode, setDisplayCode] = useState(shareData.code);
+    const [isEditing, setIsEditing] = useState(false);
+    const [customSlug, setCustomSlug] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
-    const shareUrl = `${window.location.origin}/share/${shareData.code}`;
+    const shareUrl = `${window.location.origin}/share/${displayCode}`;
     const expiresAt = new Date(shareData.expiresAt);
 
     const copyCode = async () => {
@@ -65,6 +73,40 @@ export default function ShareResult({ shareData, onClose }) {
         img.src = url;
     };
 
+    const handleHomeClick = () => {
+        onClose();
+        navigate('/');
+    };
+
+    const handleSaveSlug = async () => {
+        if (!customSlug.trim()) {
+            setIsEditing(false);
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const res = await fetch(`${API_URL}/api/share/${shareData.code}/custom`, {
+                method: 'PUT',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ customSlug })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                setDisplayCode(data.customSlug);
+                setIsEditing(false);
+                addToast('Custom link saved!', 'success');
+            } else {
+                addToast(data.error || 'Failed to update link', 'error');
+            }
+        } catch (err) {
+            addToast('Network error', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleClose = () => {
         onClose();
         navigate('/');
@@ -92,18 +134,74 @@ export default function ShareResult({ shareData, onClose }) {
                 </div>
 
                 {/* Big Code Display */}
-                <div className="published-code" onClick={copyCode}>
-                    {shareData.code.split('').map((char, i) => (
-                        <span key={i} className="published-code-char">{char}</span>
-                    ))}
+                <div className="published-code-container">
+                    <div className="published-code" onClick={copyCode} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex' }}>
+                            {shareData.code.split('').map((char, i) => (
+                                <span key={i} className="published-code-char">{char}</span>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Share URL */}
-                <div className="published-url" onClick={copyLink}>
-                    <span className="published-url-text">{shareUrl}</span>
-                    <span className="published-url-copy">
-                        {linkCopied ? <FiCheck /> : <FiCopy />}
-                    </span>
+                <div className="published-url" onClick={!isEditing ? copyLink : undefined} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: isEditing ? 'default' : 'pointer' }}>
+                    {!isEditing ? (
+                        <>
+                            <span className="published-url-text">{shareUrl}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                {isPremium && displayCode === shareData.code && (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setIsEditing(true); setCustomSlug(''); }}
+                                        style={{ background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                        title="Create custom link"
+                                    >
+                                        <FiEdit2 size={16} />
+                                    </button>
+                                )}
+                                <span className="published-url-copy">
+                                    {linkCopied ? <FiCheck size={18} /> : <FiCopy size={18} />}
+                                </span>
+                            </div>
+                        </>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem' }}>
+                            <span style={{ color: '#9ca3af', fontSize: '0.9rem' }}>{window.location.origin}/share/</span>
+                            <input
+                                type="text"
+                                value={customSlug}
+                                onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                                placeholder="custom-link"
+                                disabled={isSaving}
+                                autoFocus
+                                style={{ 
+                                    flex: 1,
+                                    padding: '0.5rem', 
+                                    background: 'rgba(0,0,0,0.3)', 
+                                    border: '1px solid #fbbf24', 
+                                    color: 'white', 
+                                    borderRadius: '0.25rem',
+                                    outline: 'none',
+                                    fontSize: '0.9rem',
+                                    minWidth: 0
+                                }}
+                            />
+                            <button 
+                                onClick={handleSaveSlug} 
+                                disabled={isSaving}
+                                style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '0.25rem' }}
+                            >
+                                {isSaving ? '...' : <FiCheck size={20} />}
+                            </button>
+                            <button 
+                                onClick={() => setIsEditing(false)} 
+                                disabled={isSaving}
+                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.25rem' }}
+                            >
+                                <FiX size={20} />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Expiry Info */}

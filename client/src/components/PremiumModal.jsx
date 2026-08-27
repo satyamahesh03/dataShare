@@ -108,8 +108,9 @@ export default function PremiumModal() {
                             <ViewOnceIcon size={16} /> Burst Share — opens once, then gone
                         </span>
                     </li>
-                    <li><FiCheck /> Posts synced wherever you sign in</li>
-                    <li><FiCheck /> Gold crown on your profile</li>
+                    <li><FiCheck /> Customizable links</li>
+                    <li><FiCheck /> Custom expiry time for files</li>
+                    <li><FiCheck /> Premium UI color pallete</li>
                 </ul>
                 {user?.isPremium && user.premiumUntil ? (
                     (() => {

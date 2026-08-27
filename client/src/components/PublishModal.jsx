@@ -66,7 +66,7 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
             }
             expiryMinutes = Math.ceil(diffMs / 60000); // convert ms to minutes
         }
-        
+
         onPublish({
             expiryMinutes,
             password: passwordEnabled && password ? password : undefined,
@@ -137,9 +137,9 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
                     </div>
                     {currentExpiry.value === 'custom' && (
                         <div className="custom-expiry-picker" style={{ marginTop: '16px' }}>
-                            <input 
-                                type="datetime-local" 
-                                className="publish-password-input" 
+                            <input
+                                type="datetime-local"
+                                className="publish-password-input"
                                 value={customDate}
                                 onChange={(e) => setCustomDate(e.target.value)}
                                 style={{ width: '100%', boxSizing: 'border-box' }}
@@ -152,7 +152,7 @@ export default function PublishModal({ isOpen, onClose, onPublish, loading, uplo
                 <div className="publish-option-card">
                     <div className="publish-option-top" style={{ marginBottom: burstShare && isPremium ? 8 : 0 }}>
                         <span className="publish-option-label">
-                            <ViewOnceIcon /> Burst share
+                            <ViewOnceIcon /> View Once
                             <span className="premium-crown-inline" title="Premium">
                                 <FaCrown />
                             </span>

@@ -16,6 +16,7 @@ import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
 import LoginModal from './components/LoginModal';
 import PremiumModal from './components/PremiumModal';
+import GlobalDragDrop from './components/GlobalDragDrop';
 import './index.css';
 
 function App() {
@@ -23,26 +24,27 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-        <Router>
-          <Header />
-          <InstallPWA />
-          <LoginModal />
-          <PremiumModal />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/text" element={<TextShare />} />
-            <Route path="/file" element={<FileShare />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/posts" element={<PublishedPosts />} />
-            <Route path="/secure/encrypt" element={<SecureText />} />
-            <Route path="/secure/decrypt" element={<SecureText />} />
-            <Route path="/p2p" element={<P2PSharePage />} />
-            <Route path="/p2p/:id" element={<P2PReceive />} />
-            <Route path="/share/:code" element={<ViewShare />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          <Footer />
-        </Router>
+          <Router>
+            <GlobalDragDrop />
+            <Header />
+            <InstallPWA />
+            <LoginModal />
+            <PremiumModal />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/text" element={<TextShare />} />
+              <Route path="/file" element={<FileShare />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/posts" element={<PublishedPosts />} />
+              <Route path="/secure/encrypt" element={<SecureText />} />
+              <Route path="/secure/decrypt" element={<SecureText />} />
+              <Route path="/p2p" element={<P2PSharePage />} />
+              <Route path="/p2p/:id" element={<P2PReceive />} />
+              <Route path="/share/:code" element={<ViewShare />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <Footer />
+          </Router>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

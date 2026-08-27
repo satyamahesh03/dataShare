@@ -23,7 +23,7 @@ export default function ViewShare() {
 
         const handleKeyDown = (e) => {
             if (
-                e.key === 'PrintScreen' || 
+                e.key === 'PrintScreen' ||
                 (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key))
             ) {
                 setBlackout(true);
@@ -32,7 +32,7 @@ export default function ViewShare() {
 
         const handleKeyUp = (e) => {
             if (
-                e.key === 'PrintScreen' || 
+                e.key === 'PrintScreen' ||
                 e.key === 'Meta' || e.key === 'Shift'
             ) {
                 setBlackout(false);
@@ -77,6 +77,13 @@ export default function ViewShare() {
             if (!res.ok) {
                 setStatus('error');
                 setError(data.error || (res.status === 410 ? 'This one-time share has already been opened' : 'Share not found'));
+                return;
+            }
+
+            // Redirect if custom slug was used instead of the 5-digit code
+            if (data.code && data.code !== code) {
+                // Navigate to the original 5-digit code URL
+                window.location.replace(`/share/${data.code}`);
                 return;
             }
 
@@ -377,7 +384,7 @@ export default function ViewShare() {
                     </div>
                 </div>
 
-                <div 
+                <div
                     className="view-card-body"
                     onContextMenu={(e) => e.preventDefault()}
                     style={{ userSelect: shareData?.burstShare ? 'none' : 'auto' }}
