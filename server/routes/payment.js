@@ -1,16 +1,12 @@
 const express = require('express');
 const crypto = require('crypto');
+const { ObjectId } = require('mongodb');
 const { requireAuth, publicUser, PREMIUM_DAYS } = require('../utils/auth');
 
 const router = express.Router();
 const PREMIUM_AMOUNT_PAISE = 1000; // ₹10
 
-function razorpayAuthHeader() {
-    const id = process.env.RAZORPAY_KEY_ID;
-    const secret = process.env.RAZORPAY_KEY_SECRET;
-    if (!id || !secret) return null;
-    return 'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64');
-}
+const Razorpay = require('razorpay');
 
 router.get('/config', (req, res) => {
     res.json({
@@ -23,34 +19,31 @@ router.get('/config', (req, res) => {
 
 router.post('/create-order', requireAuth, async (req, res) => {
     try {
-        const auth = razorpayAuthHeader();
-        if (!auth) {
+        if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
             return res.status(500).json({ error: 'Payments are not configured' });
         }
 
-        const rzRes = await fetch('https://api.razorpay.com/v1/orders', {
-            method: 'POST',
-            headers: {
-                Authorization: auth,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                amount: PREMIUM_AMOUNT_PAISE,
-                currency: 'INR',
-                receipt: `prem_${req.user._id.toString().slice(-8)}_${Date.now()}`,
-                notes: {
-                    userId: req.user._id.toString(),
-                    email: req.user.email,
-                    plan: 'premium_monthly',
-                },
-            }),
+        if (PREMIUM_AMOUNT_PAISE < 100) {
+            return res.status(500).json({ error: 'Invalid amount: minimum 100 paise required' });
+        }
+
+        const instance = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
         });
 
-        const order = await rzRes.json();
-        if (!rzRes.ok) {
-            console.error('Razorpay order error:', order);
-            return res.status(500).json({ error: 'Failed to start payment' });
-        }
+        const options = {
+            amount: PREMIUM_AMOUNT_PAISE,
+            currency: 'INR',
+            receipt: `prem_${req.user._id.toString().slice(-8)}_${Date.now()}`,
+            notes: {
+                userId: req.user._id.toString(),
+                email: req.user.email,
+                plan: 'premium_monthly',
+            },
+        };
+
+        const order = await instance.orders.create(options);
 
         res.json({
             orderId: order.id,
@@ -60,6 +53,9 @@ router.post('/create-order', requireAuth, async (req, res) => {
         });
     } catch (err) {
         console.error('Razorpay order error:', err);
+        if (err.statusCode === 401) {
+            return res.status(401).json({ error: 'Razorpay authentication failed' });
+        }
         res.status(500).json({ error: 'Failed to start payment' });
     }
 });
@@ -112,6 +108,7 @@ router.post('/verify', requireAuth, async (req, res) => {
             paymentId: razorpay_payment_id,
             amount: PREMIUM_AMOUNT_PAISE,
             currency: 'INR',
+            source: 'client_verify',
             createdAt: now,
             premiumUntil,
         });
@@ -121,6 +118,96 @@ router.post('/verify', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Payment verify error:', err);
         res.status(500).json({ error: 'Failed to verify payment' });
+    }
+});
+
+// POST /api/payment/webhook — Razorpay Webhook listener
+router.post('/webhook', async (req, res) => {
+    try {
+        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        if (!webhookSecret) {
+            console.error('Razorpay webhook error: RAZORPAY_WEBHOOK_SECRET is not configured');
+            return res.status(500).json({ error: 'Webhook secret is not configured' });
+        }
+
+        const signature = req.headers['x-razorpay-signature'];
+        if (!signature) {
+            return res.status(400).json({ error: 'Missing x-razorpay-signature header' });
+        }
+
+        // Validate webhook signature using raw body buffer or string
+        const rawBody = req.rawBody ? req.rawBody.toString() : JSON.stringify(req.body);
+        const isValid = Razorpay.validateWebhookSignature(rawBody, signature, webhookSecret);
+
+        if (!isValid) {
+            console.warn('⚠️ Invalid Razorpay webhook signature');
+            return res.status(400).json({ error: 'Invalid webhook signature' });
+        }
+
+        const event = req.body?.event;
+        console.log(`🔔 Razorpay webhook received: ${event}`);
+
+        // Handle payment captured / order paid events
+        if (event === 'payment.captured' || event === 'order.paid') {
+            const paymentEntity = req.body?.payload?.payment?.entity;
+            const orderEntity = req.body?.payload?.order?.entity;
+
+            const paymentId = paymentEntity?.id;
+            const orderId = paymentEntity?.order_id || orderEntity?.id;
+            const notes = paymentEntity?.notes || orderEntity?.notes || {};
+            const userIdStr = notes.userId;
+            const email = notes.email || paymentEntity?.email;
+
+            if (paymentId && userIdStr && ObjectId.isValid(userIdStr)) {
+                const userId = new ObjectId(userIdStr);
+                const db = req.db;
+
+                // Check if payment was already recorded
+                const existingPayment = await db.collection('payments').findOne({ paymentId });
+                if (!existingPayment) {
+                    const user = await db.collection('users').findOne({ _id: userId });
+                    if (user) {
+                        const now = new Date();
+                        const currentUntil = user.premiumUntil && new Date(user.premiumUntil) > now
+                            ? new Date(user.premiumUntil)
+                            : now;
+                        const premiumUntil = new Date(currentUntil.getTime() + PREMIUM_DAYS * 24 * 60 * 60 * 1000);
+
+                        await db.collection('users').updateOne(
+                            { _id: userId },
+                            {
+                                $set: {
+                                    premiumUntil,
+                                    updatedAt: now,
+                                },
+                            }
+                        );
+
+                        await db.collection('payments').insertOne({
+                            userId: user._id,
+                            email: user.email || email,
+                            orderId,
+                            paymentId,
+                            amount: paymentEntity?.amount || PREMIUM_AMOUNT_PAISE,
+                            currency: paymentEntity?.currency || 'INR',
+                            source: 'webhook',
+                            createdAt: now,
+                            premiumUntil,
+                        });
+
+                        console.log(`✅ Webhook: Upgraded user ${userIdStr} to premium until ${premiumUntil.toISOString()}`);
+                    }
+                }
+            }
+        } else if (event === 'payment.failed') {
+            const paymentEntity = req.body?.payload?.payment?.entity;
+            console.warn(`❌ Razorpay payment failed for paymentId: ${paymentEntity?.id}, error: ${paymentEntity?.error_description}`);
+        }
+
+        res.status(200).json({ status: 'ok' });
+    } catch (err) {
+        console.error('Razorpay webhook processing error:', err);
+        res.status(500).json({ error: 'Webhook processing failed' });
     }
 });
 

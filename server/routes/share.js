@@ -257,8 +257,8 @@ router.get('/lookup/:code', async (req, res) => {
         const { code } = req.params;
         const db = req.db;
         const searchCode = code.trim();
-        const share = await db.collection('shares').findOne({ 
-            $or: [{ code: searchCode }, { customSlug: searchCode }] 
+        const share = await db.collection('shares').findOne({
+            $or: [{ code: searchCode }, { customSlug: searchCode }]
         });
 
         if (!share) {
@@ -356,8 +356,8 @@ router.post('/access/:code', async (req, res) => {
         const { password } = req.body;
         const db = req.db;
         const searchCode = code.trim();
-        const share = await db.collection('shares').findOne({ 
-            $or: [{ code: searchCode }, { customSlug: searchCode }] 
+        const share = await db.collection('shares').findOne({
+            $or: [{ code: searchCode }, { customSlug: searchCode }]
         });
 
         if (!share) {
@@ -540,7 +540,7 @@ router.put('/:code/custom', requireAuth, async (req, res) => {
 
         const { code } = req.params;
         const { customSlug } = req.body;
-        
+
         if (!customSlug || typeof customSlug !== 'string' || customSlug.trim() === '') {
             return res.status(400).json({ error: 'Valid custom link is required' });
         }
@@ -581,3 +581,4 @@ router.put('/:code/custom', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+

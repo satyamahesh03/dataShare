@@ -68,7 +68,12 @@ app.use(cors({
     origin: ["https://datashare.satyapage.in", "http://localhost:5173", "http://localhost:3000"],
     credentials: true
 }));
-app.use(express.json({ limit: '1024mb' }));
+app.use(express.json({
+    limit: '1024mb',
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(express.urlencoded({ extended: true, limit: '1024mb' }));
 
 // Cloudinary config

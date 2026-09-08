@@ -41,7 +41,7 @@ router.post('/encrypt', optionalAuth, async (req, res) => {
 
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + parseInt(expiryHours));
-        
+
         // Generate a short code for the user to copy instead of the massive payload
         const code = nanoid(8);
 
