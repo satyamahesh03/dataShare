@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { FiDownload, FiCheckCircle, FiArrowLeft, FiMonitor, FiArrowRight, FiSmartphone, FiWifiOff, FiLock, FiUnlock, FiClock } from 'react-icons/fi';
+import { FiDownload, FiCheckCircle, FiArrowLeft, FiMonitor, FiArrowRight, FiSmartphone, FiWifiOff, FiLock, FiUnlock, FiClock, FiShield } from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function P2PReceive() {
@@ -28,6 +28,7 @@ export default function P2PReceive() {
     // Ref to track downloading status synchronously
     const downloadingFileIndexRef = useRef(null);
     const downloadQueueRef = useRef([]);
+    const iceCandidateQueueRef = useRef([]);
 
     // Update refs whenever relevant state changes
     useEffect(() => {
@@ -51,7 +52,6 @@ export default function P2PReceive() {
                 } else {
                     console.error('Room not found or inactive');
                     setError('This transfer link is invalid or the sender has disconnected.');
-                    // navigate('/'); // Don't navigate, show error
                 }
             });
         });
@@ -61,6 +61,17 @@ export default function P2PReceive() {
 
             try {
                 await peerRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+
+                // Process queued ICE candidates that arrived before the offer/remoteDescription
+                while (iceCandidateQueueRef.current.length > 0) {
+                    const candidate = iceCandidateQueueRef.current.shift();
+                    try {
+                        await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (candErr) {
+                        console.warn('Receiver queued ICE candidate error:', candErr);
+                    }
+                }
+
                 const answer = await peerRef.current.createAnswer();
                 await peerRef.current.setLocalDescription(answer);
                 socket.emit('answer', { roomId: id, sdp: peerRef.current.localDescription });
@@ -72,8 +83,11 @@ export default function P2PReceive() {
 
         socket.on('ice-candidate', async (data) => {
             try {
-                if (peerRef.current) {
+                if (!data.candidate) return;
+                if (peerRef.current && peerRef.current.remoteDescription && peerRef.current.remoteDescription.type) {
                     await peerRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+                } else {
+                    iceCandidateQueueRef.current.push(data.candidate);
                 }
             } catch (err) {
                 console.error('Error adding ICE candidate:', err);
@@ -90,14 +104,17 @@ export default function P2PReceive() {
         const pc = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun.cloudflare.com:3478' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
             ]
         });
         peerRef.current = pc;
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                socketRef.current.emit('ice-candidate', { roomId: id, candidate: event.candidate });
+                socketRef.current?.emit('ice-candidate', { roomId: id, candidate: event.candidate });
             }
         };
 
@@ -147,7 +164,9 @@ export default function P2PReceive() {
                     setError(null);
                     setStatus('waiting-files');
                 } else if (message.type === 'batch-offer') {
-                    setAvailableFiles(message.files);
+                    const files = message.files || [];
+                    setAvailableFiles(files);
+                    // Show the file list so user can see and initiate downloads
                     setStatus('connected');
                 } else if (message.type === 'file-start') {
                     setCurrentFileTitle(message.name);
@@ -233,7 +252,7 @@ export default function P2PReceive() {
         handleDataMessageRef.current = handleDataMessage;
     });
 
-    // Auto-navigate to home when all files are received
+    // Notify sender when all files are received (but don't auto-navigate away)
     useEffect(() => {
         if (availableFiles.length > 0 && receivedFiles.length === availableFiles.length) {
             // Notify sender that transfer is complete so they can close the room
@@ -241,24 +260,10 @@ export default function P2PReceive() {
                 console.log('Transfer complete. Notifying sender...');
                 socketRef.current.emit('transfer-complete', id);
             }
-
-            // Small delay to ensure message is sent before closing
-            const timer = setTimeout(() => {
-                // Close connections
-                if (peerRef.current) {
-                    peerRef.current.close();
-                }
-                if (socketRef.current) {
-                    socketRef.current.disconnect();
-                }
-
-                // Navigate home
-                navigate('/');
-            }, 500); // 500ms delay to ensure sender receives the event
-
-            return () => clearTimeout(timer);
+            // Mark status as done so success screen shows
+            setStatus('done');
         }
-    }, [receivedFiles, availableFiles, navigate, id]);
+    }, [receivedFiles, availableFiles, id]);
 
     const requestFile = (index) => {
         // If busy, just add to queue if not already there
@@ -389,7 +394,7 @@ export default function P2PReceive() {
                     </div>
                 ) : (
                     <>
-                        {['connecting', 'waiting-files'].includes(status) && (
+                        {['connecting', 'waiting-files'].includes(status) && availableFiles.length === 0 && (
                             <div style={{ textAlign: 'center', padding: '32px 0' }}>
                                 <div className="loader" style={{
                                     margin: '0 auto 24px',
@@ -515,43 +520,34 @@ export default function P2PReceive() {
                             </div>
                         )}
 
-                        {status === 'connected' && (
+                        {status === 'connected' && availableFiles.length === 0 && (
                             <div style={{ textAlign: 'center', padding: '32px 0' }}>
                                 <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>Connected!</h4>
                                 <p style={{ color: 'var(--text-secondary)' }}>
-                                    {availableFiles.length > 0
-                                        ? `${availableFiles.length} file(s) available.`
-                                        : 'Waiting for the sender to drop files.'}
+                                    Waiting for the sender to drop files...
                                 </p>
-
-                                <div style={{
-                                    background: 'rgba(239, 68, 68, 0.08)',
-                                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '12px 16px',
-                                    color: 'var(--danger)',
-                                    fontSize: '0.9rem',
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    textAlign: 'left',
-                                    maxWidth: '500px',
-                                    width: '100%',
-                                    boxSizing: 'border-box',
-                                    margin: '24px auto 0'
-                                }}>
-                                    <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
-                                    <span>Please do not switch tabs or close this window during the transfer.</span>
-                                </div>
                             </div>
                         )}
 
-                        {/* Show Available Files List if connected and not receiving */}
                         {status === 'connected' && availableFiles.length > 0 && (
-                            <div style={{ marginTop: '32px' }}>
-                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', fontSize: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ textAlign: 'center', padding: '16px 0 0' }}>
+                                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '4px' }}>Files Ready to Download!</h4>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                    {availableFiles.length} file(s) available — click Download to save each file.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Show Available Files List whenever files are discovered */}
+                        {availableFiles.length > 0 && (
+                            <div style={{ marginTop: '28px' }}>
+                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', fontSize: '1.05rem', borderBottom: '1px solid var(--border)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span>Available Files ({availableFiles.length})</span>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', fontWeight: 'normal' }}>
+                                        {receivedFiles.length} of {availableFiles.length} completed
+                                    </span>
                                 </h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', marginBottom: '24px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '360px', overflowY: 'auto', marginBottom: '20px' }}>
                                     {availableFiles.map((f, i) => {
                                         const isDownloaded = receivedFiles.some(rf => rf.name === f.name && rf.size === f.size);
                                         const isDownloading = downloadingFileIndex === f.index;
@@ -562,37 +558,80 @@ export default function P2PReceive() {
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'space-between',
-                                                padding: '16px',
+                                                padding: '14px 18px',
                                                 backgroundColor: 'var(--bg-input)',
                                                 borderRadius: 'var(--radius-md)',
-                                                border: '1px solid var(--border)'
+                                                border: '1px solid var(--border)',
+                                                gap: '12px'
                                             }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', marginRight: '16px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, flex: 1 }}>
                                                     <span style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '600', fontSize: '0.95rem' }}>
                                                         {f.name}
                                                     </span>
-                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '3px' }}>
                                                         {renderSize(f.size)}
                                                     </span>
                                                 </div>
-                                                {isDownloaded ? (
-                                                    <span style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                                                        <FiCheckCircle /> Saved
-                                                    </span>
-                                                ) : isDownloading ? (
-                                                    <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                                                        <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                                                        Downloading...
-                                                    </span>
-                                                ) : isQueued ? (
-                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                                                        <FiClock /> Queued
-                                                    </span>
-                                                ) : (
-                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                                                        <FiClock /> Waiting...
-                                                    </span>
-                                                )}
+
+                                                <div style={{ flexShrink: 0 }}>
+                                                    {isDownloaded ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const rf = receivedFiles.find(item => item.name === f.name);
+                                                                if (rf?.url) triggerDownload(rf.url, f.name);
+                                                            }}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                                background: 'rgba(16, 185, 129, 0.12)',
+                                                                color: 'var(--success)',
+                                                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                                padding: '8px 14px',
+                                                                borderRadius: '8px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.85rem',
+                                                                fontWeight: '600',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                            title="Click to save again"
+                                                        >
+                                                            <FiCheckCircle /> Saved
+                                                        </button>
+                                                    ) : isDownloading ? (
+                                                        <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                                                            Downloading...
+                                                        </span>
+                                                    ) : isQueued ? (
+                                                        <span style={{ color: 'var(--text-tertiary)', fontSize: '0.88rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <FiClock /> Queued
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => requestFile(f.index)}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                                background: 'var(--accent)',
+                                                                color: 'var(--text-inverse)',
+                                                                border: 'none',
+                                                                padding: '8px 16px',
+                                                                borderRadius: '8px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.88rem',
+                                                                fontWeight: '600',
+                                                                boxShadow: 'var(--shadow-sm)',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                        >
+                                                            <FiDownload /> Download
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -600,26 +639,26 @@ export default function P2PReceive() {
 
                                 <button
                                     onClick={downloadAll}
-                                    disabled={downloadingFileIndex !== null || downloadQueue.length > 0}
+                                    disabled={downloadingFileIndex !== null || downloadQueue.length > 0 || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length)}
                                     style={{
                                         width: '100%',
-                                        background: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'var(--bg-hover)' : 'var(--accent)',
-                                        color: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'var(--text-tertiary)' : 'var(--text-inverse)',
+                                        background: (downloadingFileIndex !== null || downloadQueue.length > 0 || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length)) ? 'var(--bg-hover)' : 'var(--accent)',
+                                        color: (downloadingFileIndex !== null || downloadQueue.length > 0 || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length)) ? 'var(--text-tertiary)' : 'var(--text-inverse)',
                                         border: 'none',
                                         padding: '14px',
                                         borderRadius: 'var(--radius-full)',
-                                        cursor: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'not-allowed' : 'pointer',
+                                        cursor: (downloadingFileIndex !== null || downloadQueue.length > 0 || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length)) ? 'not-allowed' : 'pointer',
                                         fontSize: '1rem',
                                         fontWeight: '600',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         gap: '8px',
-                                        boxShadow: (downloadingFileIndex !== null || downloadQueue.length > 0) ? 'none' : 'var(--shadow-md)',
+                                        boxShadow: (downloadingFileIndex !== null || downloadQueue.length > 0 || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length)) ? 'none' : 'var(--shadow-md)',
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <FiDownload /> Download All Files
+                                    <FiDownload /> {receivedFiles.length === availableFiles.length ? 'All Files Received' : 'Download All Files'}
                                 </button>
                             </div>
                         )}
@@ -677,44 +716,42 @@ export default function P2PReceive() {
                             </div>
                         )}
 
-                        {(status === 'done' || receivedFiles.length > 0) && (
+                        {status === 'done' && (
                             <div style={{ marginTop: '24px' }}>
-                                {status === 'done' || (availableFiles.length > 0 && receivedFiles.length === availableFiles.length) ? (
-                                    <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                                        <div style={{
-                                            width: '80px',
-                                            height: '80px',
-                                            borderRadius: '50%',
-                                            background: 'rgba(16, 185, 129, 0.1)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            margin: '0 auto 24px'
-                                        }}>
-                                            <FiCheckCircle style={{ fontSize: '40px', color: 'var(--success)', marginBottom: '0' }} />
-                                        </div>
-                                        <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>All Files Received</h4>
-                                        <p style={{ color: 'var(--text-secondary)' }}>Files have been saved to your device.</p>
-
-                                        <button
-                                            onClick={() => navigate('/')}
-                                            style={{
-                                                marginTop: '24px',
-                                                background: 'var(--accent)',
-                                                color: 'var(--text-inverse)',
-                                                border: 'none',
-                                                padding: '12px 32px',
-                                                borderRadius: 'var(--radius-full)',
-                                                cursor: 'pointer',
-                                                fontWeight: '600',
-                                                transition: 'all 0.2s',
-                                                boxShadow: 'var(--shadow-md)'
-                                            }}
-                                        >
-                                            Return Home
-                                        </button>
+                                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                                    <div style={{
+                                        width: '80px',
+                                        height: '80px',
+                                        borderRadius: '50%',
+                                        background: 'rgba(16, 185, 129, 0.1)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        margin: '0 auto 24px'
+                                    }}>
+                                        <FiCheckCircle style={{ fontSize: '40px', color: 'var(--success)', marginBottom: '0' }} />
                                     </div>
-                                ) : null}
+                                    <h4 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '8px' }}>All Files Received!</h4>
+                                    <p style={{ color: 'var(--text-secondary)' }}>All files have been saved to your device. You can re-download any file above.</p>
+
+                                    <button
+                                        onClick={() => navigate('/')}
+                                        style={{
+                                            marginTop: '24px',
+                                            background: 'var(--accent)',
+                                            color: 'var(--text-inverse)',
+                                            border: 'none',
+                                            padding: '12px 32px',
+                                            borderRadius: 'var(--radius-full)',
+                                            cursor: 'pointer',
+                                            fontWeight: '600',
+                                            transition: 'all 0.2s',
+                                            boxShadow: 'var(--shadow-md)'
+                                        }}
+                                    >
+                                        Return Home
+                                    </button>
+                                </div>
 
                                 {receivedFiles.length > 0 && (
                                     <>

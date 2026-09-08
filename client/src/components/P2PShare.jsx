@@ -44,10 +44,15 @@ export default function P2PShare() {
     const filesRef = useRef(files);
     const pinRef = useRef(pin);
     const fileInputRef = useRef(null);
+    const iceCandidateQueueRef = useRef([]);
 
     // Keep filesRef and pinRef in sync with state
     useEffect(() => {
         filesRef.current = files;
+        // If data channel is already open and sender adds files, immediately send updated manifest!
+        if (channelRef.current && channelRef.current.readyState === 'open' && files.length > 0) {
+            sendManifest(files);
+        }
     }, [files]);
 
     useEffect(() => {
@@ -85,6 +90,16 @@ export default function P2PShare() {
             try {
                 if (peerRef.current && peerRef.current.signalingState !== 'stable') {
                     await peerRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+
+                    // Process any ICE candidates that arrived before the answer
+                    while (iceCandidateQueueRef.current.length > 0) {
+                        const candidate = iceCandidateQueueRef.current.shift();
+                        try {
+                            await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                        } catch (candErr) {
+                            console.warn('Sender queued ICE candidate error:', candErr);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error('Error setting answer:', err);
@@ -93,8 +108,11 @@ export default function P2PShare() {
 
         socket.on('ice-candidate', async (data) => {
             try {
-                if (peerRef.current) {
+                if (!data.candidate) return;
+                if (peerRef.current && peerRef.current.remoteDescription && peerRef.current.remoteDescription.type) {
                     await peerRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+                } else {
+                    iceCandidateQueueRef.current.push(data.candidate);
                 }
             } catch (err) {
                 console.error('Error adding ICE candidate:', err);
@@ -125,22 +143,28 @@ export default function P2PShare() {
         const pc = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun.cloudflare.com:3478' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
             ]
         });
         peerRef.current = pc;
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                socketRef.current.emit('ice-candidate', { roomId: currentRoomId, candidate: event.candidate });
+                socketRef.current?.emit('ice-candidate', { roomId: currentRoomId, candidate: event.candidate });
             }
         };
 
         const channel = pc.createDataChannel('fileTransfer');
-        channel.bufferedAmountLowThreshold = 1048576;
+        channel.binaryType = 'arraybuffer';
+        channel.bufferedAmountLowThreshold = 524288;
         channelRef.current = channel;
 
         channel.onopen = () => {
+            console.log('Data channel open on sender');
+            setStatus('connected');
             if (filesRef.current.length > 0) {
                 if (pinRef.current) {
                     setStatus('locked');
@@ -177,14 +201,26 @@ export default function P2PShare() {
     const handleFileSelect = (e) => {
         if (e.target.files && e.target.files.length > 0) {
             const newFiles = Array.from(e.target.files);
-            setFiles(prev => [...prev, ...newFiles]);
+            setFiles(prev => {
+                const combined = [...prev, ...newFiles];
+                if (channelRef.current && channelRef.current.readyState === 'open') {
+                    sendManifest(combined);
+                }
+                return combined;
+            });
             // Reset input value so same files can be re-selected if removed
             e.target.value = '';
         }
     };
 
     const removeFile = (index) => {
-        setFiles(prev => prev.filter((_, i) => i !== index));
+        setFiles(prev => {
+            const updated = prev.filter((_, i) => i !== index);
+            if (channelRef.current && channelRef.current.readyState === 'open' && updated.length > 0) {
+                sendManifest(updated);
+            }
+            return updated;
+        });
     };
 
     const resetFiles = () => {
@@ -209,7 +245,14 @@ export default function P2PShare() {
         const items = e.dataTransfer.items;
         if (!items) {
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
+                const newFiles = Array.from(e.dataTransfer.files);
+                setFiles(prev => {
+                    const combined = [...prev, ...newFiles];
+                    if (channelRef.current && channelRef.current.readyState === 'open') {
+                        sendManifest(combined);
+                    }
+                    return combined;
+                });
             }
             return;
         }
@@ -266,7 +309,13 @@ export default function P2PShare() {
         }
 
         if (allFiles.length > 0) {
-            setFiles(prev => [...prev, ...allFiles]);
+            setFiles(prev => {
+                const combined = [...prev, ...allFiles];
+                if (channelRef.current && channelRef.current.readyState === 'open') {
+                    sendManifest(combined);
+                }
+                return combined;
+            });
         }
     };
 
@@ -307,44 +356,59 @@ export default function P2PShare() {
         const channel = channelRef.current;
         if (!channel || channel.readyState !== 'open') return;
 
-        channel.send(JSON.stringify({
-            type: 'file-start',
-            index: index,
-            name: file.name,
-            size: file.size,
-            fileType: file.type
-        }));
+        try {
+            channel.send(JSON.stringify({
+                type: 'file-start',
+                index: index,
+                name: file.name,
+                size: file.size,
+                fileType: file.type
+            }));
 
-        const chunkSize = 65536; // 64KB
-        let offset = 0;
-        let bytesSent = 0;
+            // 16 KB is the universal cross-browser WebRTC data channel chunk limit
+            const chunkSize = 16384;
+            let offset = 0;
+            let bytesSent = 0;
 
-        const readChunk = (file, offset, size) => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file.slice(offset, offset + size));
-            });
-        };
-
-        while (offset < file.size) {
-            if (channel.bufferedAmount > 4194304) {
-                await new Promise(resolve => {
-                    channel.onbufferedamountlow = () => {
-                        channel.onbufferedamountlow = null;
-                        resolve();
-                    };
+            const readChunk = (file, offset, size) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file.slice(offset, offset + size));
                 });
-            }
-            const chunk = await readChunk(file, offset, chunkSize);
-            channel.send(chunk);
-            offset += chunk.byteLength;
-            bytesSent += chunk.byteLength;
-            setProgress(Math.round((bytesSent / file.size) * 100));
-        }
+            };
 
-        channel.send(JSON.stringify({ type: 'file-end', index: index }));
+            while (offset < file.size) {
+                // Backpressure: If buffer exceeds 512 KB, wait for it to flush
+                if (channel.bufferedAmount > 524288) {
+                    await new Promise(resolve => {
+                        const checkBuffer = () => {
+                            if (!channel || channel.readyState !== 'open' || channel.bufferedAmount <= 262144) {
+                                resolve();
+                            } else {
+                                setTimeout(checkBuffer, 25);
+                            }
+                        };
+                        checkBuffer();
+                    });
+                }
+
+                if (!channel || channel.readyState !== 'open') break;
+
+                const chunk = await readChunk(file, offset, chunkSize);
+                channel.send(chunk);
+                offset += chunk.byteLength;
+                bytesSent += chunk.byteLength;
+                setProgress(Math.round((bytesSent / file.size) * 100));
+            }
+
+            if (channel && channel.readyState === 'open') {
+                channel.send(JSON.stringify({ type: 'file-end', index: index }));
+            }
+        } catch (err) {
+            console.error('Error during sendFile:', err);
+        }
     };
 
     const shareUrl = `${window.location.origin}/p2p/${roomId}`;

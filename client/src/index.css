@@ -1423,52 +1423,62 @@
 @media (max-width: 768px) {
   .features {
     grid-template-columns: 1fr;
-    padding: 12px 18px 48px;
-    gap: 10px;
+    padding: 16px 20px 48px;
+    gap: 14px;
   }
 
   .p2p-card {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
-    padding: 13px 16px;
+    gap: 14px;
+    padding: 18px 20px;
+    border-radius: var(--radius-xl);
     min-height: auto;
   }
 
   .p2p-card-content {
     flex-direction: row;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
   }
 
   .p2p-icon-wrapper {
-    width: 36px;
-    height: 36px;
-    font-size: 1.25rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 1.35rem;
+    background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
   }
 
   .p2p-device-icon {
-    font-size: 1.3rem !important;
+    font-size: 1.4rem !important;
   }
 
   .p2p-title {
-    font-size: 1.05rem;
-    margin-bottom: 2px;
-    line-height: 1.2;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+    line-height: 1.3;
   }
 
   .p2p-desc {
-    font-size: 0.82rem;
-    line-height: 1.3;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: var(--text-tertiary);
   }
 
   .p2p-action-btn {
     width: 100%;
     justify-content: center;
-    padding: 8px 16px;
-    font-size: 0.88rem;
-    min-height: 36px;
+    padding: 10px 18px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border-radius: 12px;
+    min-height: 40px;
   }
 }
 
@@ -4804,35 +4814,43 @@ textarea {
   /* Feature Cards */
   .features {
     grid-template-columns: 1fr;
-    padding: 12px 18px 48px;
-    gap: 10px;
+    padding: 16px 20px 48px;
+    gap: 14px;
   }
 
   .feature-card {
-    padding: 12px 16px;
-    gap: 5px;
+    padding: 18px 20px;
+    gap: 8px;
+    border-radius: var(--radius-xl);
     min-height: auto;
   }
 
   .feature-card-header {
-    gap: 10px;
+    gap: 14px;
   }
 
   .feature-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 1.15rem;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.25rem;
+    background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
   }
 
   .feature-title {
-    font-size: 1rem;
-    line-height: 1.2;
+    font-size: 1.08rem;
+    font-weight: 600;
+    line-height: 1.3;
   }
 
   .feature-desc {
-    font-size: 0.82rem;
-    line-height: 1.3;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: var(--text-tertiary);
     padding-left: 0;
     margin: 0;
   }
@@ -5250,78 +5268,99 @@ textarea {
 
   /* Feature Cards */
   .features {
-    padding: 8px 14px 40px;
-    gap: 8px;
+    padding: 12px 16px 44px;
+    gap: 12px;
   }
 
   .p2p-card {
-    padding: 11px 14px;
-    gap: 8px;
+    padding: 16px 18px;
+    gap: 12px;
+    border-radius: var(--radius-xl);
     min-height: auto;
   }
 
   .p2p-card-content {
-    gap: 10px;
+    gap: 14px;
   }
 
   .p2p-icon-wrapper {
-    width: 32px;
-    height: 32px;
-    font-size: 1.15rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 1.25rem;
+    background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .p2p-device-icon {
-    font-size: 1.2rem !important;
+    font-size: 1.3rem !important;
   }
 
   .p2p-title {
-    font-size: 0.98rem;
-    margin-bottom: 1px;
-  }
-
-  .p2p-desc {
-    font-size: 0.78rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 2px;
     line-height: 1.25;
   }
 
+  .p2p-desc {
+    font-size: 0.84rem;
+    line-height: 1.35;
+    color: var(--text-tertiary);
+  }
+
   .p2p-action-btn {
-    padding: 7px 14px;
-    font-size: 0.85rem;
-    min-height: 34px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 12px;
+    min-height: 40px;
   }
 
   .feature-card {
-    padding: 10px 14px;
-    gap: 4px;
+    padding: 16px 18px;
+    gap: 8px;
+    border-radius: var(--radius-xl);
     min-height: auto;
   }
 
   .feature-card-header {
-    gap: 8px;
+    gap: 12px;
   }
 
   .feature-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 1.1rem;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    font-size: 1.2rem;
+    background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
   }
 
   .feature-title {
-    font-size: 0.95rem;
-    line-height: 1.2;
+    font-size: 1.02rem;
+    font-weight: 600;
+    line-height: 1.25;
   }
 
   .feature-desc {
     padding-left: 0;
-    font-size: 0.78rem;
-    line-height: 1.25;
+    font-size: 0.84rem;
+    line-height: 1.35;
+    color: var(--text-tertiary);
     margin: 0;
   }
 
   .pro-card-badge {
-    padding: 2px 6px;
-    font-size: 0.68rem;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    border-radius: 6px;
   }
 
   /* Tool Page */

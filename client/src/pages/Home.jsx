@@ -83,7 +83,7 @@ export default function Home() {
                     </p>
                 </Link>
 
-                <Link to="/p2p" className="feature-card" style={{ gridColumn: '1 / -1' }}>
+                {/* <Link to="/p2p" className="feature-card" style={{ gridColumn: '1 / -1' }}>
                     <div className="feature-card-header">
                         <div className="feature-icon">
                             <FiMonitor />
@@ -93,7 +93,7 @@ export default function Home() {
                     <p className="feature-desc">
                         Send files directly to another device.
                     </p>
-                </Link>
+                </Link> */}
             </section>
         </main>
     );

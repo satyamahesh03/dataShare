@@ -44,8 +44,8 @@ function App() {
               <Route path="/posts" element={<PublishedPosts />} />
               <Route path="/secure/encrypt" element={<SecureText />} />
               <Route path="/secure/decrypt" element={<SecureText />} />
-              <Route path="/p2p" element={<P2PSharePage />} />
-              <Route path="/p2p/:id" element={<P2PReceive />} />
+              {/* <Route path="/p2p" element={<P2PSharePage />} />
+              <Route path="/p2p/:id" element={<P2PReceive />} /> */}
               <Route path="/share/:code" element={<ViewShare />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
