@@ -329,43 +329,27 @@ export default function P2PReceive() {
     };
 
     return (
-        <main className="container wrapper p2p-receive-main" style={{ marginTop: '30px', padding: '0 20px' }}>
-            <div className="p2p-receive-card" style={{
-                backgroundColor: 'var(--bg-card)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '40px',
-                border: '1px solid var(--border)',
-                maxWidth: '1200px',
-                width: '100%',
-                margin: '0 auto',
-                boxShadow: 'var(--shadow-lg)',
-                position: 'relative'
-            }}>
-                <button
-                    className="back-btn p2p-back-btn"
-                    onClick={() => navigate('/')}
-                    title="Back to Home"
-                    style={{ position: 'absolute', top: '24px', left: '24px' }}
-                >
-                    <FiArrowLeft />
-                </button>
-                <h2 className="p2p-receive-title" style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '12px',
-                    marginBottom: '32px',
-                    color: 'var(--text-primary)',
-                    fontSize: '1.5rem',
-                    fontWeight: '700'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', color: 'var(--accent)', gap: '4px' }}>
-                        <FiMonitor className="p2p-device-icon primary" />
-                        <FiArrowRight className="p2p-transfer-arrow" />
-                        <FiSmartphone className="p2p-device-icon secondary" />
+        <main className="p2p-page">
+            <div className="p2p-top-nav">
+                <div className="p2p-header-info">
+                    <button className="back-btn" onClick={() => navigate('/p2p')} title="Back to P2P">
+                        <FiArrowLeft />
+                    </button>
+                    <div>
+                        <h1 className="p2p-page-title">
+                            Receive Files
+                        </h1>
+                        <p className="p2p-page-subtitle">Connected to Room <strong>#{id}</strong> • Direct P2P Stream</p>
                     </div>
-                    Receive Files
-                </h2>
+                </div>
+
+                <div className="p2p-pill-badge">
+                    <FiShield style={{ color: 'var(--success)' }} />
+                    Encrypted Device-to-Device
+                </div>
+            </div>
+
+            <div className="p2p-hub-card">
 
 
                 {error ? (

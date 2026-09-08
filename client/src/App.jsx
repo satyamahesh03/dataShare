@@ -11,6 +11,7 @@ import PublishedPosts from './pages/PublishedPosts';
 import SecureText from './pages/SecureText';
 import P2PReceive from './pages/P2PReceive';
 import P2PSharePage from './pages/P2PSharePage';
+import PaymentSuccess from './pages/PaymentSuccess';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
@@ -32,6 +33,11 @@ function App() {
             <PremiumModal />
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Home />} />
+              <Route path="/premium" element={<Home />} />
+              <Route path="/payment/checkout/:orderId" element={<Home />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/success/:paymentId" element={<PaymentSuccess />} />
               <Route path="/text" element={<TextShare />} />
               <Route path="/file" element={<FileShare />} />
               <Route path="/search" element={<SearchPage />} />

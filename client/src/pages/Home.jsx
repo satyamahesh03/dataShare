@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiFileText, FiFolder, FiShield, FiGlobe, FiSmartphone, FiArrowRight, FiMonitor } from 'react-icons/fi';
+import { FiFileText, FiFolder, FiShield, FiGlobe, FiArrowRight, FiMonitor } from 'react-icons/fi';
+import { FaCrown } from 'react-icons/fa';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
+    const { isPremium } = useAuth();
     const [stats, setStats] = useState(null);
 
     useEffect(() => {
@@ -20,14 +23,14 @@ export default function Home() {
     return (
         <main>
             <section className="hero">
-                <h1 className="hero-title animate-fade-in-up">
+                <h1 className="hero-title">
                     Share anything,<br />instantly.
                 </h1>
-                <p className="hero-subtitle animate-fade-in-up delay-100">
+                <p className="hero-subtitle">
                     Securely share texts and files in seconds.
                 </p>
                 {stats !== null && (
-                    <div className="global-stats-badge animate-fade-in-up delay-200" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', marginTop: '16px', backgroundColor: 'var(--surface-color)', borderRadius: '24px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>
+                    <div className="global-stats-badge">
                         <FiGlobe style={{ color: 'var(--primary-color)' }} />
                         <span><strong style={{ color: 'var(--text-primary)' }}>{stats.toLocaleString()}+</strong> items shared globally</span>
                     </div>
@@ -35,13 +38,16 @@ export default function Home() {
             </section>
 
             <section className="features">
-                <div className="p2p-card animate-fade-in-up delay-300" style={{ gridColumn: '1 / -1' }}>
+                <div className="p2p-card" style={{ gridColumn: '1 / -1' }}>
                     <div className="p2p-card-content">
                         <div className="p2p-icon-wrapper">
-                            <FiFolder className="p2p-device-icon primary" style={{ fontSize: '2rem' }} />
+                            <FiFolder className="p2p-device-icon primary" style={{ fontSize: '1.6rem' }} />
                         </div>
                         <div className="p2p-text-content">
-                            <h3 className="feature-title p2p-title">File Sharing</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <h3 className="feature-title p2p-title" style={{ margin: 0 }}>File Sharing</h3>
+                                {isPremium && <span className="pro-card-badge"><FaCrown /> 1GB Active</span>}
+                            </div>
                             <p className="feature-desc p2p-desc">
                                 Share files with ease
                             </p>
@@ -52,20 +58,21 @@ export default function Home() {
                     </Link>
                 </div>
 
-                <Link to="/text" className="feature-card animate-fade-in-up delay-400">
-                    <div className="feature-card-top">
+                <Link to="/text" className="feature-card">
+                    <div className="feature-card-header">
                         <div className="feature-icon">
                             <FiFileText />
                         </div>
                         <h3 className="feature-title">Text Sharing</h3>
+                        {isPremium && <span className="pro-card-badge" style={{ marginLeft: 'auto' }}><FaCrown /> Burst & Custom</span>}
                     </div>
                     <p className="feature-desc">
                         Share text instantly with a link.
                     </p>
                 </Link>
 
-                <Link to="/secure/encrypt" className="feature-card animate-fade-in-up delay-500">
-                    <div className="feature-card-top">
+                <Link to="/secure/encrypt" className="feature-card">
+                    <div className="feature-card-header">
                         <div className="feature-icon">
                             <FiShield />
                         </div>
@@ -76,15 +83,15 @@ export default function Home() {
                     </p>
                 </Link>
 
-                <Link to="/p2p" className="feature-card animate-fade-in-up delay-500" style={{ gridColumn: '1 / -1' }}>
-                    <div className="feature-card-top">
+                <Link to="/p2p" className="feature-card" style={{ gridColumn: '1 / -1' }}>
+                    <div className="feature-card-header">
                         <div className="feature-icon">
                             <FiMonitor />
                         </div>
                         <h3 className="feature-title">Peer-to-Peer Transfer</h3>
                     </div>
                     <p className="feature-desc">
-                        Send files directly to another device. Unlimited size, no server storage.
+                        Send files directly to another device.
                     </p>
                 </Link>
             </section>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
+import { FiCheck, FiX, FiInfo } from 'react-icons/fi';
 
 const ToastContext = createContext();
 
@@ -19,10 +20,12 @@ export function ToastProvider({ children }) {
             <div className="toast-container">
                 {toasts.map(toast => (
                     <div key={toast.id} className={`toast ${toast.type}`}>
-                        {toast.type === 'success' && '✓'}
-                        {toast.type === 'error' && '✕'}
-                        {toast.type === 'info' && 'ℹ'}
-                        {toast.message}
+                        <span className="toast-icon-wrap">
+                            {toast.type === 'success' && <FiCheck />}
+                            {toast.type === 'error' && <FiX />}
+                            {toast.type === 'info' && <FiInfo />}
+                        </span>
+                        <span>{toast.message}</span>
                     </div>
                 ))}
             </div>

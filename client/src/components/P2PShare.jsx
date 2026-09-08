@@ -1,15 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { FiUploadCloud, FiCheckCircle, FiCopy, FiFileText, FiMonitor, FiArrowRight, FiSmartphone, FiLock, FiUnlock } from 'react-icons/fi';
+import {
+    FiUploadCloud,
+    FiCheckCircle,
+    FiCopy,
+    FiCheck,
+    FiFileText,
+    FiFile,
+    FiImage,
+    FiFilm,
+    FiMusic,
+    FiArchive,
+    FiTrash2,
+    FiPlus,
+    FiMonitor,
+    FiArrowRight,
+    FiSmartphone,
+    FiLock,
+    FiUnlock,
+    FiWifi,
+    FiShield
+} from 'react-icons/fi';
 import { API_URL } from '../config';
 
 export default function P2PShare() {
     const [roomId, setRoomId] = useState('');
     const [files, setFiles] = useState([]);
-    const [status, setStatus] = useState('waiting'); // waiting, connected, sending, done
+    const [status, setStatus] = useState('waiting'); // waiting, connected, locked, sending, done
     const [progress, setProgress] = useState(0);
-    const [copied, setCopied] = useState(false);
+    const [currentSendingIndex, setCurrentSendingIndex] = useState(0);
+    const [currentSendingName, setCurrentSendingName] = useState('');
+    const [copiedUrl, setCopiedUrl] = useState(false);
+    const [copiedCode, setCopiedCode] = useState(false);
+    const [dragActive, setDragActive] = useState(false);
 
     // Security PIN
     const [pin, setPin] = useState('');
@@ -19,7 +43,7 @@ export default function P2PShare() {
     const channelRef = useRef(null);
     const filesRef = useRef(files);
     const pinRef = useRef(pin);
-    const ackResolverRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Keep filesRef and pinRef in sync with state
     useEffect(() => {
@@ -47,7 +71,6 @@ export default function P2PShare() {
 
         socket.on('receiver-joined', async () => {
             setStatus('connected');
-            // When receiver joins, we create an offer
             createPeerConnection(id);
             try {
                 const offer = await peerRef.current.createOffer();
@@ -79,7 +102,6 @@ export default function P2PShare() {
         });
 
         socket.on('transfer-complete', () => {
-            console.log('Transfer complete received from receiver.');
             setStatus('done');
 
             // Increment global stats
@@ -89,7 +111,6 @@ export default function P2PShare() {
                 body: JSON.stringify({ count: filesRef.current.length })
             }).catch(err => console.error('Failed to increment stats:', err));
 
-            // Close connections to prevent re-use of this session
             if (peerRef.current) peerRef.current.close();
             if (socketRef.current) socketRef.current.disconnect();
         });
@@ -116,12 +137,10 @@ export default function P2PShare() {
         };
 
         const channel = pc.createDataChannel('fileTransfer');
-        // Set low threshold to 1MB to prevent pipe from emptying
         channel.bufferedAmountLowThreshold = 1048576;
         channelRef.current = channel;
 
         channel.onopen = () => {
-            console.log('Data channel opened!');
             if (filesRef.current.length > 0) {
                 if (pinRef.current) {
                     setStatus('locked');
@@ -131,11 +150,11 @@ export default function P2PShare() {
                 }
             }
         };
+
         channel.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'request-file') {
-                    // Receiver requested a file
                     sendFile(data.index);
                 } else if (data.type === 'verify-pin') {
                     if (data.pin === pinRef.current) {
@@ -146,29 +165,50 @@ export default function P2PShare() {
                     }
                 }
             } catch (e) {
-                // Ignore binary data or non-json
+                // Non-JSON ignored
             }
         };
+
         channel.onclose = () => {
-            console.log('Data channel closed');
             setStatus('done');
         };
     };
 
     const handleFileSelect = (e) => {
-        if (e.target.files.length > 0) {
-            setFiles(prev => [...prev, ...Array.from(e.target.files)]);
+        if (e.target.files && e.target.files.length > 0) {
+            const newFiles = Array.from(e.target.files);
+            setFiles(prev => [...prev, ...newFiles]);
+            // Reset input value so same files can be re-selected if removed
+            e.target.value = '';
+        }
+    };
+
+    const removeFile = (index) => {
+        setFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const resetFiles = () => {
+        setFiles([]);
+    };
+
+    const handleDrag = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === 'dragenter' || e.type === 'dragover') {
+            setDragActive(true);
+        } else if (e.type === 'dragleave') {
+            setDragActive(false);
         }
     };
 
     const handleDrop = async (e) => {
         e.preventDefault();
-        e.currentTarget.style.borderColor = 'var(--border)';
-        e.currentTarget.style.backgroundColor = 'var(--bg-input)';
+        e.stopPropagation();
+        setDragActive(false);
 
         const items = e.dataTransfer.items;
         if (!items) {
-            if (e.dataTransfer.files.length > 0) {
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
             }
             return;
@@ -176,32 +216,23 @@ export default function P2PShare() {
 
         const readDirEntries = async (dirReader) => {
             return new Promise((resolve) => {
-                dirReader.readEntries(async (entries) => {
-                    resolve(entries);
-                });
+                dirReader.readEntries((entries) => resolve(entries));
             });
         };
 
         const scanFiles = async (item) => {
             if (item.isFile) {
                 return new Promise((resolve) => {
-                    item.file((file) => {
-                        // Some systems require path to identify duplicates or folders, 
-                        // setting a custom property on the file object
-                        resolve([file]);
-                    });
+                    item.file((file) => resolve([file]));
                 });
             } else if (item.isDirectory) {
                 const dirReader = item.createReader();
                 let allEntries = [];
                 let entries = await readDirEntries(dirReader);
-
-                // readEntries may not return all files at once, must loop until empty
                 while (entries.length > 0) {
                     allEntries = allEntries.concat(entries);
                     entries = await readDirEntries(dirReader);
                 }
-
                 let innerFiles = [];
                 for (let entry of allEntries) {
                     const result = await scanFiles(entry);
@@ -212,7 +243,6 @@ export default function P2PShare() {
             return [];
         };
 
-        // Extract entries synchronously because e.dataTransfer becomes invalid after first await
         let entries = [];
         for (let i = 0; i < items.length; i++) {
             if (items[i].kind === 'file') {
@@ -244,7 +274,6 @@ export default function P2PShare() {
         if (pin) {
             setPin('');
         } else {
-            // Generate 4-digit PIN
             setPin(Math.floor(1000 + Math.random() * 9000).toString());
         }
     };
@@ -252,8 +281,8 @@ export default function P2PShare() {
     const sendManifest = (selectedFiles) => {
         setStatus('sending');
         const channel = channelRef.current;
+        if (!channel || channel.readyState !== 'open') return;
 
-        // Send list of all files
         const manifest = {
             type: 'batch-offer',
             files: selectedFiles.map((f, i) => ({
@@ -271,9 +300,13 @@ export default function P2PShare() {
         const file = filesRef.current[index];
         if (!file) return;
 
-        const channel = channelRef.current;
+        setCurrentSendingIndex(index);
+        setCurrentSendingName(file.name);
+        setProgress(0);
 
-        // Send file start
+        const channel = channelRef.current;
+        if (!channel || channel.readyState !== 'open') return;
+
         channel.send(JSON.stringify({
             type: 'file-start',
             index: index,
@@ -282,8 +315,7 @@ export default function P2PShare() {
             fileType: file.type
         }));
 
-        // 64KB chunks are optimal for WebRTC over WAN
-        const chunkSize = 65536;
+        const chunkSize = 65536; // 64KB
         let offset = 0;
         let bytesSent = 0;
 
@@ -297,7 +329,6 @@ export default function P2PShare() {
         };
 
         while (offset < file.size) {
-            // Buffer up to 4MB before pausing loop
             if (channel.bufferedAmount > 4194304) {
                 await new Promise(resolve => {
                     channel.onbufferedamountlow = () => {
@@ -310,14 +341,9 @@ export default function P2PShare() {
             channel.send(chunk);
             offset += chunk.byteLength;
             bytesSent += chunk.byteLength;
-
-            // Only update global progress if sending one file at a time sequentially
-            // For random access, this progress bar might jump around, but that's okay for now.
-            // Or we can just show "Sending: Filename"
             setProgress(Math.round((bytesSent / file.size) * 100));
         }
 
-        // Mark end of this file
         channel.send(JSON.stringify({ type: 'file-end', index: index }));
     };
 
@@ -325,482 +351,348 @@ export default function P2PShare() {
 
     const copyUrl = () => {
         navigator.clipboard.writeText(shareUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 2000);
     };
 
-    const resetFiles = () => {
-        setFiles([]);
-        if (socketRef.current) {
-            // Re-join logic or just keep socket?
-            // If we clear files, we probably just want to go back to initial state.
-            // But if we already have a room, we might want to keep it?
-            // For simplicity, let's keep the room but clear the files manifest if we haven't sent it yet.
-            // Actually, if we are in 'waiting' state, we haven't sent manifest yet.
-            // Just clearing files state is enough to hide the QR code section.
-        }
+    const copyRoomCode = () => {
+        navigator.clipboard.writeText(roomId);
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2000);
     };
 
     const cancelSending = () => {
-        // Close connections
         if (peerRef.current) peerRef.current.close();
         if (socketRef.current) socketRef.current.disconnect();
         if (channelRef.current) channelRef.current.close();
-
-        // Refresh page to reset completely or reset state
         window.location.reload();
     };
 
+    // Helper: format bytes into human readable format
+    const formatBytes = (bytes) => {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    };
+
+    // Helper: get file icon based on mime type or extension
+    const getFileIcon = (file) => {
+        const type = file.type || '';
+        const name = file.name || '';
+        if (type.startsWith('image/')) return <FiImage />;
+        if (type.startsWith('video/')) return <FiFilm />;
+        if (type.startsWith('audio/')) return <FiMusic />;
+        if (type.includes('pdf') || type.includes('document') || name.endsWith('.txt')) return <FiFileText />;
+        if (type.includes('zip') || type.includes('tar') || type.includes('compressed') || name.endsWith('.zip')) return <FiArchive />;
+        return <FiFile />;
+    };
+
+    // Calculate total size of selected files
+    const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+    const roomDigits = roomId.split('');
+
     return (
-        <div
-            className="p2p-section"
-            style={{
-                background: 'linear-gradient(145deg, var(--bg-card), var(--bg-secondary))',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
-                border: '1px solid var(--border-light)',
-                transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-            }}
-        >
-            <h3 className="p2p-section-title">
-                <span className="p2p-section-title-icon" style={{ background: 'transparent', width: 'auto' }}>
-                    <FiMonitor className="p2p-device-icon primary" />
-                    <FiArrowRight className="p2p-transfer-arrow" />
-                    <FiSmartphone className="p2p-device-icon secondary" />
-                </span>
-                Direct Peer-to-Peer Transfer
-            </h3>
+        <div className="p2p-hub-card">
+            <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+            />
 
+            {/* WAITING STATE */}
             {status === 'waiting' && (
-                <>
-                    <p className="p2p-section-subtitle">
-                        Send files directly to another device without uploading to any server.<br />
-                        <span style={{ color: 'var(--accent)', fontWeight: '500' }}>Fast, private, and unlimited.</span>
-                    </p>
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                        alignItems: 'center',
-                        marginBottom: '32px',
-                        width: '100%'
-                    }}>
-                        {/* <div style={{
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            border: '1px solid rgba(239, 68, 68, 0.2)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '12px 16px',
-                            color: 'var(--danger)',
-                            fontSize: '0.9rem',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            textAlign: 'left',
-                            maxWidth: '500px',
-                            width: '100%',
-                            boxSizing: 'border-box'
-                        }}>
-                            <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
-                            <span>Please do not switch tabs or close this window during the transfer.</span>
-                        </div> */}
-                        <div style={{
-                            background: 'rgba(16, 185, 129, 0.08)',
-                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '12px 16px',
-                            color: 'var(--success)',
-                            fontSize: '0.9rem',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            textAlign: 'left',
-                            maxWidth: '500px',
-                            width: '100%',
-                            boxSizing: 'border-box'
-                        }}>
-                            <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Pro Tip:</span>
-                            <span>For ultra-fast, zero-data transfers, connect both devices to the same WiFi network.</span>
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center' }}>
-                        {files.length === 0 && (
-                            <div style={{ flex: '1 1 300px', maxWidth: '1100px', width: '100%' }}>
-                                <label className="file-input-label" style={{
-                                    height: '100%',
-                                    minHeight: '320px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    cursor: 'pointer',
-                                    border: '2px dashed var(--border)',
-                                    borderRadius: 'var(--radius-xl)',
-                                    padding: '32px',
-                                    backgroundColor: 'var(--bg-input)',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                }}
-                                    onDrop={handleDrop}
-                                    onDragOver={(e) => {
-                                        e.preventDefault();
-                                        e.currentTarget.style.borderColor = 'var(--accent)';
-                                        e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                                    }}
-                                    onDragLeave={(e) => {
-                                        e.preventDefault();
-                                        e.currentTarget.style.borderColor = 'var(--border)';
-                                        e.currentTarget.style.backgroundColor = 'var(--bg-input)';
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = 'var(--accent)';
-                                        e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = 'var(--border)';
-                                        e.currentTarget.style.backgroundColor = 'var(--bg-input)';
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                    }}
-                                >
-                                    <input
-                                        type="file"
-                                        multiple
-                                        className="hidden-file-input"
-                                        onChange={handleFileSelect}
-                                        style={{ display: 'none' }}
-                                    />
-                                    <div className="p2p-upload-icon-wrap">
-                                        <FiUploadCloud style={{ fontSize: '40px', color: 'var(--accent)' }} />
-                                    </div>
-                                    <span className="p2p-upload-title">Choose files or drag & drop</span>
-                                    <span className="p2p-upload-subtitle">
-                                        {files.length > 0 ? `${files.length} file(s) selected` : 'Select multiple files'}
-                                    </span>
-                                </label>
+                <div>
+                    {files.length === 0 ? (
+                        /* Initial Empty Dropzone */
+                        <div
+                            className={`p2p-dropzone ${dragActive ? 'drag-active' : ''}`}
+                            onClick={() => fileInputRef.current?.click()}
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                        >
+                            <div className="p2p-dropzone-icon">
+                                <FiUploadCloud />
                             </div>
-                        )}
-
-                        {files.length > 0 && (
-                            <div style={{
-                                flex: '1 1 300px',
-                                maxWidth: '500px',
-                                width: '100%',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                backgroundColor: 'var(--bg-input)',
-                                borderRadius: 'var(--radius-xl)',
-                                padding: '32px',
-                                border: '1px solid var(--border)',
-                                minHeight: '320px',
-                                overflow: 'hidden',
-                                animation: 'fadeIn 0.5s ease'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px', width: '100%' }}>
+                            <h3 className="p2p-dropzone-title">Drop your files here or click to browse</h3>
+                            <p className="p2p-dropzone-sub">
+                                Any file type • No file size limits • Browser-to-browser direct stream
+                            </p>
+                            <div className="p2p-browse-pill">
+                                <FiPlus /> Choose Files
+                            </div>
+                        </div>
+                    ) : (
+                        /* Two-Column Transfer Layout */
+                        <div className="p2p-transfer-layout">
+                            {/* Left: Selected Files Manager */}
+                            <div className="p2p-files-panel">
+                                <div className="p2p-files-header">
+                                    <div className="p2p-files-count">
+                                        Files to Stream
+                                        <span className="p2p-files-size-badge">
+                                            {files.length} {files.length === 1 ? 'file' : 'files'} • {formatBytes(totalBytes)}
+                                        </span>
+                                    </div>
                                     <button
-                                        onClick={togglePin}
-                                        style={{
-                                            background: pin ? 'var(--danger)' : 'transparent',
-                                            border: pin ? 'none' : '1px solid var(--border)',
-                                            color: pin ? 'var(--text-inverse)' : 'var(--text-secondary)',
-                                            padding: '8px 20px',
-                                            borderRadius: 'var(--radius-full)',
-                                            cursor: 'pointer',
-                                            fontSize: '0.9rem',
-                                            fontWeight: '600',
-                                            transition: 'all 0.2s',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px'
-                                        }}
+                                        type="button"
+                                        className="p2p-clear-all-btn"
+                                        onClick={resetFiles}
+                                        title="Clear all selected files"
                                     >
-                                        {pin ? <><FiLock /> PIN: {pin}</> : <><FiUnlock /> Secure with PIN (Optional)</>}
+                                        Clear All
                                     </button>
                                 </div>
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                                    <div style={{
-                                        background: '#fff',
-                                        padding: '20px',
-                                        borderRadius: '16px',
-                                        boxShadow: 'var(--shadow-md)',
-                                        marginBottom: '24px'
-                                    }}>
-                                        <QRCodeSVG value={shareUrl} size={140} />
-                                    </div>
-                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: '500', marginBottom: '4px' }}>
-                                        Scan to Receive
-                                    </p>
-                                    <p style={{ fontSize: '0.95rem', color: 'var(--accent)', fontWeight: '600' }}>
-                                        {files.length} file{files.length !== 1 && 's'} ready to send
-                                    </p>
+
+                                <div className="p2p-files-list">
+                                    {files.map((file, idx) => (
+                                        <div key={idx} className="p2p-file-item">
+                                            <div className="p2p-file-left">
+                                                <div className="p2p-file-icon-box">
+                                                    {getFileIcon(file)}
+                                                </div>
+                                                <div className="p2p-file-meta">
+                                                    <p className="p2p-file-name" title={file.name}>
+                                                        {file.name}
+                                                    </p>
+                                                    <p className="p2p-file-size">
+                                                        {formatBytes(file.size)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="p2p-file-del-btn"
+                                                onClick={() => removeFile(idx)}
+                                                title="Remove file"
+                                            >
+                                                <FiTrash2 />
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
 
-                                <div style={{ width: '100%', marginTop: 'auto' }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        gap: '12px',
-                                        background: 'var(--bg-card)',
-                                        padding: '6px 6px 6px 20px',
-                                        borderRadius: 'var(--radius-full)',
-                                        width: '100%',
-                                        border: '1px solid var(--border)',
-                                        transition: 'border-color 0.2s, box-shadow 0.2s',
-                                        marginBottom: '16px',
-                                        overflow: 'hidden'
-                                    }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--accent)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--border)';
-                                        }}
+                                <div className="p2p-files-actions">
+                                    <button
+                                        type="button"
+                                        className="p2p-add-more-btn"
+                                        onClick={() => fileInputRef.current?.click()}
                                     >
-                                        <span style={{
-                                            color: 'var(--text-primary)',
-                                            fontSize: '0.95rem',
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            flex: 1,
-                                            userSelect: 'all',
-                                            minWidth: '0'
-                                        }}>
-                                            {shareUrl}
-                                        </span>
-                                        <button
-                                            onClick={copyUrl}
-                                            style={{
-                                                background: copied ? 'var(--success)' : 'var(--accent)',
-                                                border: 'none',
-                                                color: 'var(--text-inverse)',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                gap: '8px',
-                                                padding: '10px 20px',
-                                                borderRadius: 'var(--radius-full)',
-                                                height: '44px',
-                                                flexShrink: 0,
-                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                fontWeight: '600',
-                                                fontSize: '0.9rem'
-                                            }}
-                                            title="Copy Link"
-                                        >
-                                            {copied ? <><FiCheckCircle /> Copied</> : <><FiCopy /> Copy</>}
-                                        </button>
-                                    </div>
-
-                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                        <button
-                                            onClick={resetFiles}
-                                            style={{
-                                                background: 'transparent',
-                                                border: '1px solid var(--border)',
-                                                color: 'var(--text-secondary)',
-                                                padding: '10px 24px',
-                                                borderRadius: 'var(--radius-full)',
-                                                cursor: 'pointer',
-                                                fontSize: '0.9rem',
-                                                fontWeight: '500',
-                                                transition: 'all 0.2s',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '8px'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.borderColor = 'var(--danger)';
-                                                e.currentTarget.style.color = 'var(--danger)';
-                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.borderColor = 'var(--border)';
-                                                e.currentTarget.style.color = 'var(--text-secondary)';
-                                                e.currentTarget.style.background = 'transparent';
-                                            }}
-                                        >
-                                            Clear / Reset
-                                        </button>
-                                    </div>
+                                        <FiPlus /> Add More Files
+                                    </button>
+                                    <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
+                                        Ready to stream
+                                    </span>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                </>
+
+                            {/* Right: Sharing Hub */}
+                            <div className="p2p-share-hub">
+                                <div className="p2p-hub-header">
+                                    <h4 className="p2p-hub-title">
+                                        <FiSmartphone /> Connect Receiver
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        onClick={togglePin}
+                                        className={`p2p-pin-toggle ${pin ? 'is-locked' : 'is-unlocked'}`}
+                                        title="Add a 4-digit PIN for extra security"
+                                    >
+                                        {pin ? (
+                                            <><FiLock /> PIN: <strong>{pin}</strong></>
+                                        ) : (
+                                            <><FiUnlock /> Secure with PIN</>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* Prominent 5-Digit Room Code */}
+                                <div className="p2p-code-section">
+                                    <p className="p2p-code-label">Room Code</p>
+                                    <div className="p2p-digits-row">
+                                        {roomDigits.map((digit, idx) => (
+                                            <div key={idx} className="p2p-digit-box">
+                                                {digit}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="p2p-copy-code-btn"
+                                        onClick={copyRoomCode}
+                                    >
+                                        {copiedCode ? <><FiCheck /> Code Copied</> : <><FiCopy /> Copy Room Code</>}
+                                    </button>
+                                </div>
+
+                                {/* QR Code Display */}
+                                <div className="p2p-qr-wrapper">
+                                    <div className="p2p-qr-box">
+                                        <QRCodeSVG value={shareUrl} size={130} />
+                                    </div>
+                                    <p className="p2p-qr-hint">
+                                        Scan with phone camera to connect instantly
+                                    </p>
+                                </div>
+
+                                {/* Direct Link Row */}
+                                <div className="p2p-link-box">
+                                    <span className="p2p-link-text" title={shareUrl}>
+                                        {shareUrl}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="p2p-copy-link-btn"
+                                        onClick={copyUrl}
+                                    >
+                                        {copiedUrl ? <><FiCheck /> Copied</> : <><FiCopy /> Copy Link</>}
+                                    </button>
+                                </div>
+
+                                {/* Live Radar Status */}
+                                <div className="p2p-radar-status">
+                                    <span className="p2p-radar-dot" />
+                                    <span>Waiting for receiver to join...</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
 
+            {/* CONNECTED STATE */}
             {status === 'connected' && (
-                <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                     <div style={{
-                        width: '80px',
-                        height: '80px',
+                        width: '76px',
+                        height: '76px',
                         borderRadius: '50%',
-                        background: 'var(--accent-light)',
+                        background: 'rgba(16, 185, 129, 0.12)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        margin: '0 auto 24px'
+                        margin: '0 auto 20px',
+                        color: 'var(--success)',
+                        fontSize: '2rem'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', color: 'var(--accent)', animation: 'pulse 2s infinite' }}>
-                            <FiMonitor style={{ fontSize: '32px' }} />
-                            <FiArrowRight className="p2p-transfer-arrow" style={{ fontSize: '24px' }} />
-                            <FiSmartphone style={{ fontSize: '32px' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <FiMonitor />
+                            <FiArrowRight style={{ fontSize: '1.2rem' }} />
+                            <FiSmartphone />
                         </div>
                     </div>
-                    <h4 style={{ color: 'var(--text-primary)', marginBottom: '8px', fontSize: '1.2rem' }}>Receiver Connected!</h4>
-                    <p style={{ color: 'var(--text-secondary)' }}>Preparing to send {files.length} file(s)...</p>
+                    <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                        Receiver Connected!
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: 0 }}>
+                        Handshake established. Initiating direct file stream...
+                    </p>
                 </div>
             )}
 
+            {/* LOCKED PIN STATE */}
             {status === 'locked' && (
-                <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                     <div style={{
-                        width: '80px',
-                        height: '80px',
+                        width: '72px',
+                        height: '72px',
                         borderRadius: '50%',
                         background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        margin: '0 auto 24px',
-                        border: '1px solid rgba(239, 68, 68, 0.2)'
+                        margin: '0 auto 20px',
+                        color: 'var(--danger)',
+                        fontSize: '2rem'
                     }}>
-                        <FiLock style={{ fontSize: '32px', color: 'var(--danger)' }} />
+                        <FiLock />
                     </div>
-                    <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.2rem' }}>Awaiting PIN Verification</h4>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Share this exact PIN with the receiver:</p>
+                    <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                        Awaiting PIN Verification
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginBottom: '20px' }}>
+                        Share this 4-digit PIN with the receiver to start the transfer:
+                    </p>
                     <div style={{
-                        display: 'inline-block',
+                        display: 'inline-flex',
+                        gap: '10px',
+                        padding: '12px 24px',
                         background: 'var(--bg-input)',
-                        padding: '16px 32px',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '2px dashed var(--border)',
-                        color: 'var(--text-primary)',
-                        fontSize: '3rem',
-                        fontWeight: '700',
-                        letterSpacing: '12px'
+                        border: '2px dashed var(--accent)',
+                        borderRadius: 'var(--radius-lg)'
                     }}>
-                        {pin}
+                        {pin.split('').map((d, i) => (
+                            <span key={i} style={{
+                                width: '40px',
+                                height: '48px',
+                                background: 'var(--bg-card)',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '1.8rem',
+                                fontWeight: '800',
+                                color: 'var(--text-primary)'
+                            }}>
+                                {d}
+                            </span>
+                        ))}
                     </div>
                 </div>
             )}
 
+            {/* ACTIVE SENDING STATE */}
             {status === 'sending' && (
-                <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <div style={{
-                        width: '80px',
-                        height: '80px',
-                        borderRadius: '50%',
-                        background: 'var(--accent-light)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 24px'
-                    }}>
-                        <FiUploadCloud style={{ fontSize: '40px', color: 'var(--accent)' }} />
+                <div className="p2p-transfer-dashboard">
+                    <div className="p2p-transfer-icon-pulse">
+                        <FiUploadCloud />
                     </div>
-                    <h4 style={{ color: 'var(--text-primary)', marginBottom: '16px', fontSize: '1.2rem' }}>Sending Files...</h4>
-                    <div style={{
-                        width: '100%',
-                        maxWidth: '320px',
-                        margin: '0 auto',
-                        height: '6px',
-                        background: 'var(--bg-input)',
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                    }}>
-                        <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.3s ease-out' }}></div>
-                    </div>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontWeight: '500' }}>{progress}%</p>
+                    <h3 className="p2p-transfer-heading">Streaming Files Directly...</h3>
+                    <p className="p2p-transfer-file-active">
+                        File {currentSendingIndex + 1} of {files.length}: <strong>{currentSendingName || files[currentSendingIndex]?.name}</strong>
+                    </p>
 
-                    <div style={{
-                        background: 'rgba(239, 68, 68, 0.08)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '12px 16px',
-                        color: 'var(--danger)',
-                        fontSize: '0.9rem',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        textAlign: 'left',
-                        maxWidth: '500px',
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        margin: '24px auto 0'
-                    }}>
-                        <span style={{ marginRight: '8px', fontWeight: 'bold', flexShrink: 0 }}>Important:</span>
-                        <span>Please do not switch tabs or close this window during the transfer.</span>
+                    <div className="p2p-prog-bar-wrap">
+                        <div className="p2p-prog-bar-fill" style={{ width: `${progress}%` }} />
+                    </div>
+                    <p className="p2p-prog-percentage">{progress}%</p>
+
+                    <div>
+                        <div className="p2p-safe-banner">
+                            <FiWifi /> Keep this browser tab open until all files finish streaming.
+                        </div>
                     </div>
 
                     <button
+                        type="button"
+                        className="p2p-cancel-btn"
                         onClick={cancelSending}
-                        style={{
-                            marginTop: '24px',
-                            background: 'transparent',
-                            border: '1px solid var(--danger)',
-                            color: 'var(--danger)',
-                            padding: '8px 24px',
-                            borderRadius: 'var(--radius-full)',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            fontSize: '0.9rem',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--danger)';
-                            e.currentTarget.style.color = 'var(--text-inverse)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--danger)';
-                        }}
                     >
                         Cancel Transfer
                     </button>
                 </div>
             )}
 
+            {/* COMPLETED STATE */}
             {status === 'done' && (
-                <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <div style={{
-                        width: '80px',
-                        height: '80px',
-                        borderRadius: '50%',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 24px'
-                    }}>
-                        <FiCheckCircle style={{ fontSize: '40px', color: 'var(--success)', marginBottom: '0' }} />
+                <div className="p2p-success-state">
+                    <div className="p2p-success-icon-wrap">
+                        <FiCheckCircle />
                     </div>
-                    <h4 style={{ color: 'var(--text-primary)', marginBottom: '8px', fontSize: '1.2rem' }}>Transfer Complete!</h4>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>All files have been successfully sent.</p>
+                    <h3 className="p2p-success-heading">Transfer Complete!</h3>
+                    <p className="p2p-success-sub">
+                        All files were directly streamed to the receiver with zero cloud storage.
+                    </p>
                     <button
+                        type="button"
+                        className="p2p-send-more-btn"
                         onClick={() => window.location.reload()}
-                        style={{
-                            background: 'var(--accent)',
-                            color: 'var(--text-inverse)',
-                            border: 'none',
-                            padding: '12px 32px',
-                            borderRadius: 'var(--radius-full)',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            fontSize: '0.95rem',
-                            transition: 'transform 0.2s',
-                            boxShadow: 'var(--shadow-md)'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                     >
                         Send More Files
                     </button>

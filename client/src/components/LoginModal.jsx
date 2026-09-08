@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { FiX } from 'react-icons/fi';
 import { FaCrown } from 'react-icons/fa';
@@ -8,13 +10,37 @@ import { GOOGLE_CLIENT_ID } from '../config';
 export default function LoginModal() {
     const { showLogin, setShowLogin, loginWithGoogle } = useAuth();
     const { addToast } = useToast();
+    const location = useLocation();
+    const navigate = useNavigate();
 
-    if (!showLogin) return null;
+    const isLoginRoute = location.pathname === '/login';
+    const isOpen = isLoginRoute;
+
+    // When showLogin is triggered from buttons, reflect it in the URL with a unique auth ID,
+    // then immediately turn off the context's showLogin state so the URL is the single source of truth.
+    useEffect(() => {
+        if (showLogin) {
+            if (!isLoginRoute) {
+                const authId = 'auth_' + Math.random().toString(36).substring(2, 10);
+                navigate(`/login?auth_id=${authId}`, { state: { from: location.pathname } });
+            }
+            setShowLogin(false);
+        }
+    }, [showLogin, isLoginRoute, location.pathname, navigate, setShowLogin]);
+
+    if (!isOpen) return null;
+
+    const handleClose = () => {
+        const target = (location.state?.from && !location.state.from.startsWith('/login'))
+            ? location.state.from
+            : '/';
+        navigate(target, { replace: true });
+    };
 
     return (
-        <div className="publish-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowLogin(false)}>
+        <div className="publish-modal-overlay" style={{ zIndex: 9999 }} onClick={handleClose}>
             <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
-                <button className="publish-modal-close" onClick={() => setShowLogin(false)}>
+                <button className="publish-modal-close" onClick={handleClose}>
                     <FiX />
                 </button>
                 <div className="auth-modal-crown">
@@ -35,6 +61,7 @@ export default function LoginModal() {
                             onSuccess={async (cred) => {
                                 try {
                                     await loginWithGoogle(cred.credential);
+                                    handleClose();
                                 } catch (err) {
                                     addToast(err.message || 'Sign-in failed', 'error');
                                 }

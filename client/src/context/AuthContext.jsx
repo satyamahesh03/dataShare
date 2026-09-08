@@ -11,6 +11,13 @@ export function AuthProvider({ children }) {
     const [showLogin, setShowLogin] = useState(false);
     const [showPremium, setShowPremium] = useState(false);
 
+    const triggerProWelcome = () => {
+        document.documentElement.classList.add('premium-transforming');
+        setTimeout(() => {
+            document.documentElement.classList.remove('premium-transforming');
+        }, 3500);
+    };
+
     const refreshUser = async () => {
         const token = localStorage.getItem(TOKEN_KEY);
         if (!token) {
@@ -56,7 +63,11 @@ export function AuthProvider({ children }) {
         localStorage.setItem(TOKEN_KEY, data.token);
         setUser(data.user);
         setShowLogin(false);
-        addToast(`Welcome${data.user?.name ? `, ${data.user.name.split(' ')[0]}` : ''}!`, 'success');
+        if (data.user?.isPremium) {
+            triggerProWelcome();
+        } else {
+            addToast(`Welcome${data.user?.name ? `, ${data.user.name.split(' ')[0]}` : ''}!`, 'success');
+        }
         return data.user;
     };
 
@@ -87,6 +98,7 @@ export function AuthProvider({ children }) {
         setShowLogin,
         showPremium,
         setShowPremium,
+        triggerProWelcome,
         loginWithGoogle,
         logout,
         refreshUser,

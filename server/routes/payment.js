@@ -121,6 +121,63 @@ router.post('/verify', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/payment/receipt/:paymentId — securely fetch verified receipt for the authenticated user
+router.get('/receipt/:paymentId', requireAuth, async (req, res) => {
+    try {
+        const { paymentId } = req.params;
+        const payment = await req.db.collection('payments').findOne({
+            paymentId,
+            userId: req.user._id,
+        });
+
+        if (!payment) {
+            return res.status(404).json({ error: 'Receipt not found or does not belong to your account' });
+        }
+
+        res.json({
+            paymentId: payment.paymentId,
+            orderId: payment.orderId,
+            amount: payment.amount,
+            currency: payment.currency,
+            createdAt: payment.createdAt,
+            premiumUntil: payment.premiumUntil,
+            email: req.user.email,
+        });
+    } catch (err) {
+        console.error('Receipt fetch error:', err);
+        res.status(500).json({ error: 'Failed to fetch receipt' });
+    }
+});
+
+// GET /api/payment/latest-receipt — get the latest verified payment for the authenticated user
+router.get('/latest-receipt', requireAuth, async (req, res) => {
+    try {
+        const payment = await req.db.collection('payments')
+            .find({ userId: req.user._id })
+            .sort({ createdAt: -1 })
+            .limit(1)
+            .toArray();
+
+        if (!payment || payment.length === 0) {
+            return res.status(404).json({ error: 'No verified payments found for your account' });
+        }
+
+        const p = payment[0];
+        res.json({
+            paymentId: p.paymentId,
+            orderId: p.orderId,
+            amount: p.amount,
+            currency: p.currency,
+            createdAt: p.createdAt,
+            premiumUntil: p.premiumUntil,
+            email: req.user.email,
+        });
+    } catch (err) {
+        console.error('Latest receipt fetch error:', err);
+        res.status(500).json({ error: 'Failed to fetch latest receipt' });
+    }
+});
+
 // POST /api/payment/webhook — Razorpay Webhook listener
 router.post('/webhook', async (req, res) => {
     try {
