@@ -79,6 +79,8 @@ router.post('/verify', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Payment verification failed' });
         }
 
+        // If the webhook already recorded this payment, just return success
+        // without crediting extra days
         const existingPayment = await req.db.collection('payments').findOne({ paymentId: razorpay_payment_id });
         if (existingPayment) {
             const user = await req.db.collection('users').findOne({ _id: req.user._id });
@@ -91,6 +93,32 @@ router.post('/verify', requireAuth, async (req, res) => {
             : now;
         const premiumUntil = new Date(currentUntil.getTime() + PREMIUM_DAYS * 24 * 60 * 60 * 1000);
 
+        // Atomically insert the payment record first — if the webhook beat us
+        // to it (race condition), MongoDB will throw a duplicate key error on
+        // the unique paymentId index and we skip crediting.
+        try {
+            await req.db.collection('payments').insertOne({
+                userId: req.user._id,
+                email: req.user.email,
+                orderId: razorpay_order_id,
+                paymentId: razorpay_payment_id,
+                amount: PREMIUM_AMOUNT_PAISE,
+                currency: 'INR',
+                source: 'client_verify',
+                createdAt: now,
+                premiumUntil,
+            });
+        } catch (insertErr) {
+            // Duplicate key error (code 11000) means webhook already processed it
+            if (insertErr.code === 11000) {
+                console.log(`ℹ️ Payment ${razorpay_payment_id} already recorded by webhook, skipping credit`);
+                const user = await req.db.collection('users').findOne({ _id: req.user._id });
+                return res.json({ success: true, user: publicUser(user) });
+            }
+            throw insertErr;
+        }
+
+        // Only credit the user if our insert succeeded (we won the race)
         await req.db.collection('users').updateOne(
             { _id: req.user._id },
             {
@@ -100,18 +128,6 @@ router.post('/verify', requireAuth, async (req, res) => {
                 },
             }
         );
-
-        await req.db.collection('payments').insertOne({
-            userId: req.user._id,
-            email: req.user.email,
-            orderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
-            amount: PREMIUM_AMOUNT_PAISE,
-            currency: 'INR',
-            source: 'client_verify',
-            createdAt: now,
-            premiumUntil,
-        });
 
         const user = await req.db.collection('users').findOne({ _id: req.user._id });
         res.json({ success: true, user: publicUser(user) });
