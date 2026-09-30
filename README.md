@@ -11,6 +11,27 @@ A complete full-stack web application designed for secure text and file sharing.
 - **Real-Time P2P Transfers:** Direct peer-to-peer (P2P) file sharing for sending files instantly to a connected receiver without passing through server storage.
 - **Automated Expired Cleanup:** An automated system that deletes expired files from cloud storage and the database to maintain a clean platform.
 
+## Usage
+
+DataShare offers a simple and intuitive interface for sharing files and text. Here's a quick guide on how to use it:
+
+1. **Upload Files & Text:** 
+   - Click on the upload area to select files or drag and drop them.
+   - Add any secret text messages you want to share.
+   - (Optional) Set a password for extra security.
+   - Click "Share" to generate a unique 6-digit code.
+
+2. **Receive Files & Text:**
+   - Go to the "Receive" section.
+   - Enter the 6-digit code provided by the sender.
+   - If a password was set, you will be prompted to enter it.
+   - Download the files or copy the text message.
+
+3. **P2P Transfer (Direct Share):**
+   - Navigate to the "P2P Transfer" section for direct device-to-device sharing.
+   - Share your unique Peer ID with the receiver or connect using their ID.
+   - Once connected, transfer files instantly without server limits!
+
 ## Project Structure
 
 This project is structured as a Monorepo containing two main directories:
@@ -84,16 +105,42 @@ The React frontend should now be running locally. Typically, Vite will start the
 
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+First off, thank you for considering contributing to DataShare! Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-Don't forget to give the project a star! Thanks again!
+Also, check out our [CONTRIBUTORS.md](CONTRIBUTORS.md) list. If you make a contribution, feel free to add your name there!
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### How Can I Contribute?
+
+#### Reporting Bugs
+- **Check existing issues:** Ensure the bug was not already reported by searching on GitHub under [Issues](https://github.com/satyamahesh03/dataShare/issues).
+- **Open a new issue:** If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/satyamahesh03/dataShare/issues/new). 
+- **Be descriptive:** Include a clear title and description, as much relevant information as possible, and steps to reproduce the expected behavior that is not occurring.
+
+#### Suggesting Enhancements
+- **Check existing issues:** See if your enhancement has already been suggested.
+- **Open a new issue:** Open a new issue with the tag `enhancement`.
+- **Provide context:** Provide a clear and detailed explanation of the feature you want and why it's important or useful for the project.
+
+#### Pull Requests
+Please follow these steps to have your contribution considered by the maintainers:
+1. **Fork the Project:** Fork the repository to your own GitHub account.
+2. **Create your Feature Branch:** (`git checkout -b feature/AmazingFeature`)
+3. **Commit your Changes:** (`git commit -m 'feat: Add some AmazingFeature'`)
+4. **Push to the Branch:** (`git push origin feature/AmazingFeature`)
+5. **Open a Pull Request:** Go to the original repository and open a Pull Request. Provide a detailed description of your changes.
+
+### Styleguides
+
+#### Commit Messages
+We encourage the use of [Conventional Commits](https://www.conventionalcommits.org/).
+- Prefix your commits with type (e.g., `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).
+- Use the present tense ("Add feature" not "Added feature").
+- Use the imperative mood ("Move cursor to..." not "Moves cursor to...").
+
+#### Code Style
+- Ensure you run `npm run lint` or format your code using the existing Prettier/ESLint configuration in the project before committing.
+- Keep components small and reusable in the React client.
+- Comment your code, especially where the logic is complex.
 
 ## License
 
