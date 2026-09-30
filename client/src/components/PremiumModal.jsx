@@ -304,7 +304,7 @@ export default function PremiumModal() {
                         )}
                     </button>
                     <div className="pro-security-strip">
-                        <FiShield /> Secured by Razorpay • 256-Bit Encryption • Instant Activation
+                        <FiShield /> Secured by Razorpay
                     </div>
                 </div>
             </div>
